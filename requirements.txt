@@ -1,0 +1,46 @@
+# Web framework
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+gunicorn==23.0.0
+
+# ORM + migraciones
+sqlalchemy[asyncio]==2.0.36
+alembic==1.13.3
+asyncpg==0.30.0          # driver async PostgreSQL
+
+# Validación y settings
+pydantic[email]==2.9.2
+pydantic-settings==2.5.2
+
+# Auth
+fastapi-users[sqlalchemy]==13.0.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Email
+fastapi-mail==1.4.1
+
+# HTTP client (consulta AFIP async)
+httpx==0.27.2
+
+# Redis + Celery
+redis==5.1.1
+celery[redis]==5.4.0
+
+# OCR + PDF processing
+pytesseract==0.3.13
+pdf2image==1.17.0
+pdfplumber==0.11.4
+python-multipart==0.0.12  # upload de archivos
+
+# Exportación
+openpyxl==3.1.5
+
+# Pagos
+mercadopago==2.2.4
+
+# Templates
+jinja2==3.1.4
+
+# Utilidades
+python-dotenv==1.0.1

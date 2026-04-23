@@ -1,0 +1,8 @@
+# Forzar LF en el VPS para todos los archivos de texto
+* text=auto eol=lf
+
+# Binarios — sin conversión
+*.png binary
+*.jpg binary
+*.pdf binary
+*.ico binary

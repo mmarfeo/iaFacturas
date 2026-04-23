@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+uploads/
+*.log
+alembic/versions/*.py
+!alembic/versions/.gitkeep
