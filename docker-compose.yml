@@ -122,7 +122,6 @@ services:
       - traefik.http.routers.iafacturas.rule=Host(`iafacturas.dewoc.com`)
       - traefik.http.routers.iafacturas.entrypoints=websecure
       - traefik.http.routers.iafacturas.tls=true
-      - traefik.http.routers.iafacturas.tls.certresolver=mytlschallenge
       - traefik.http.services.iafacturas.loadbalancer.server.port=80
       - traefik.docker.network=n8n_evoapi
     volumes:
