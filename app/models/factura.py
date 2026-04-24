@@ -1,0 +1,37 @@
+from datetime import datetime, date
+from decimal import Decimal
+from sqlalchemy import Integer, String, Boolean, DateTime, Date, Numeric, ForeignKey, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import JSONB
+from app.core.database import Base
+
+
+class Factura(Base):
+    __tablename__ = "facturas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+
+    # Archivo
+    archivo_path: Mapped[str] = mapped_column(String(500), nullable=False)
+
+    # Datos extraídos (resultado completo como JSONB)
+    datos_extraidos: Mapped[dict] = mapped_column(JSONB, nullable=True)
+
+    # Campos indexados para búsqueda rápida
+    cae: Mapped[str] = mapped_column(String(20), nullable=True, index=True)
+    cae_valido: Mapped[bool] = mapped_column(Boolean, nullable=True)
+    cae_vencimiento: Mapped[date] = mapped_column(Date, nullable=True)
+    cuit_emisor: Mapped[str] = mapped_column(String(13), nullable=True, index=True)
+    cuit_receptor: Mapped[str] = mapped_column(String(13), nullable=True)
+    importe: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=True)
+    fecha_factura: Mapped[date] = mapped_column(Date, nullable=True)
+
+    # Estado del procesamiento
+    estado: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pendiente"
+    )  # pendiente | procesando | completado | error
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+
+    usuario: Mapped["Usuario"] = relationship("Usuario", back_populates="facturas")

@@ -4,7 +4,7 @@
 >
 > **Hosting:** Hostinger (subdominio de dewoc.com — página por defecto activa)
 >
-> **Última actualización:** Abril 2026
+> **Última actualización:** 24 de Abril 2026
 
 ---
 
@@ -50,8 +50,8 @@ Aplicación web **100% Python** bajo el subdominio `iafacturas.dewoc.com` (Hosti
 
 - [x] 🟢 Nombre del producto: **IAFacturas**
 - [x] 🟢 Subdominio definido y provisionado: `iafacturas.dewoc.com` (Hostinger — página por defecto activa)
-- [ ] 🟡 `[DevOps]` Configurar el subdominio en Hostinger para apuntar a la aplicación Python (FastAPI via WSGI/proxy)
-- [ ] 🟡 `[DevOps]` Verificar soporte de Python en el plan de Hostinger o evaluar si conviene usar un VPS/Docker aparte
+- [x] 🟡 `[DevOps]` Configurar el subdominio en Hostinger para apuntar a la aplicación Python (DNS A record → VPS, website Hostinger eliminado)
+- [x] 🟡 `[DevOps]` Verificar soporte de Python en el plan de Hostinger → decidido usar VPS existente con Docker
 - [ ] 🟢 Definir paleta de colores, logo y branding básico del producto (nombre: IAFacturas)
 - [ ] 🟢 Definir planes y precios (Free: 10 facturas/mes, Pro: ilimitado, etc.)
 
@@ -59,9 +59,9 @@ Aplicación web **100% Python** bajo el subdominio `iafacturas.dewoc.com` (Hosti
 
 ## Fase 2 — Arquitectura y Setup del Proyecto
 
-- [ ] 🟡 `[DevOps]` Crear repositorio Git separado para el producto (`iafacturas` o similar)
-- [ ] 🟡 `[DevOps]` Crear `docker-compose.yml` con: `fastapi` + `postgresql` + `redis` + `celery` + `nginx`
-- [ ] 🟡 `[Python]` Inicializar proyecto FastAPI con estructura:
+- [x] 🟡 `[DevOps]` Crear repositorio Git separado para el producto (`github.com/mmarfeo/iafacturas`)
+- [x] 🟡 `[DevOps]` Crear `docker-compose.yml` con: `fastapi` + `postgresql` + `redis` + `celery` + `nginx` + Traefik labels
+- [x] 🟡 `[Python]` Inicializar proyecto FastAPI con estructura:
   ```
   app/
   ├── core/          # config, database, security
@@ -70,35 +70,13 @@ Aplicación web **100% Python** bajo el subdominio `iafacturas.dewoc.com` (Hosti
   ├── routers/       # endpoints
   ├── services/      # lógica de negocio (OCR, AFIP, LLM)
   └── templates/     # Jinja2 HTML
-  tasks/             # Celery tasks
+  tasks/             # Celery tasks (celery_app.py + procesar_factura.py)
   alembic/           # migraciones
   ```
-- [ ] 🟡 `[Python]` Configurar `requirements.txt`:
-  ```
-  fastapi
-  uvicorn[standard]
-  sqlalchemy[asyncio]
-  alembic
-  asyncpg
-  redis
-  celery
-  pydantic[email]
-  pydantic-settings
-  python-jose[cryptography]
-  passlib[bcrypt]
-  fastapi-users[sqlalchemy]
-  fastapi-mail
-  httpx
-  pytesseract
-  pdf2image
-  pdfplumber
-  python-multipart
-  openpyxl
-  mercadopago
-  ```
-- [ ] 🟡 `[Python]` Configurar `app/core/config.py` con `pydantic-settings` para variables de entorno
-- [ ] 🟡 `[Python]` Configurar conexión async a PostgreSQL con SQLAlchemy (`asyncpg` como driver)
-- [ ] 🟢 `[DevOps]` Crear `.env.example` con todas las variables necesarias: `DATABASE_URL`, `REDIS_URL`, `OPENAI_API_KEY`, `MERCADOPAGO_ACCESS_TOKEN`, `SMTP_*`, `SECRET_KEY`
+- [x] 🟡 `[Python]` Configurar `requirements.txt` con stack completo
+- [x] 🟡 `[Python]` Configurar `app/core/config.py` con `pydantic-settings` para variables de entorno
+- [x] 🟡 `[Python]` Configurar conexión async a PostgreSQL con SQLAlchemy (`asyncpg` como driver)
+- [x] 🟢 `[DevOps]` Crear `.env.example` con todas las variables necesarias: `DATABASE_URL`, `REDIS_URL`, `OPENAI_API_KEY`, `MERCADOPAGO_ACCESS_TOKEN`, `SMTP_*`, `SECRET_KEY`
 
 ---
 
@@ -185,18 +163,15 @@ Aplicación web **100% Python** bajo el subdominio `iafacturas.dewoc.com` (Hosti
 
 ## Fase 8 — Deploy y Producción en iafacturas.dewoc.com
 
-- [ ] 🟡 `[DevOps]` Decidir arquitectura de deploy en Hostinger: Python App (si el plan lo soporta) o VPS separado con Docker
-- [ ] 🟡 `[DevOps]` Configurar SSL en `iafacturas.dewoc.com` con Let's Encrypt (Hostinger lo ofrece automáticamente)
-- [ ] 🟡 `[DevOps]` Configurar Nginx/Apache como reverse proxy en Hostinger: `iafacturas.dewoc.com → uvicorn:8000`
-- [ ] 🟡 `[DevOps]` Configurar `gunicorn` + `uvicorn workers` para producción:
-  ```bash
-  gunicorn -k uvicorn.workers.UvicornWorker app.main:app --workers 4
-  ```
+- [x] 🟡 `[DevOps]` Decidir arquitectura de deploy → VPS existente con Docker (mismo VPS que document-ai)
+- [x] 🟡 `[DevOps]` Configurar SSL en `iafacturas.dewoc.com` con Let's Encrypt via Traefik file provider (cert válido hasta Jul 2026)
+- [x] 🟡 `[DevOps]` Configurar Traefik como reverse proxy: `iafacturas.dewoc.com → nginx container → uvicorn:8000`
+- [x] 🟡 `[DevOps]` Configurar `gunicorn` + `uvicorn workers` para producción (2 workers, timeout 120s)
 - [ ] 🟡 `[DevOps]` Configurar backups automáticos de PostgreSQL (pg_dump diario — Hostinger Backups o S3)
 - [ ] 🟢 `[DevOps]` Activar monitoreo de uptime para `iafacturas.dewoc.com` en UptimeRobot
 - [ ] 🟡 `[DevOps]` CI/CD con GitHub Actions: test → build Docker → deploy en push a `main`
 - [ ] 🟢 Testing de carga: subir 50+ PDFs simultáneos y verificar que Celery distribuye correctamente
-- [ ] 🟢 Verificar que la URL `https://iafacturas.dewoc.com` carga correctamente con SSL activo
+- [x] 🟢 Verificar que la URL `https://iafacturas.dewoc.com` carga correctamente con SSL activo ✅
 
 ---
 
@@ -204,16 +179,17 @@ Aplicación web **100% Python** bajo el subdominio `iafacturas.dewoc.com` (Hosti
 
 | Fase | Descripción | Tareas | Completadas |
 |------|-------------|--------|-------------|
-| 1 | Producto y Hosting | 6 | 2 |
-| 2 | Arquitectura y Setup | 7 | 0 |
+| 1 | Producto y Hosting | 6 | 4 |
+| 2 | Arquitectura y Setup | 7 | 7 ✅ |
 | 3 | DB y Migraciones | 7 | 0 |
 | 4 | OCR, Regex y Extracción | 7 | 0 |
 | 5 | Consulta CAE AFIP | 6 | 0 |
 | 6 | Frontend Jinja2 | 8 | 0 |
 | 7 | Auth, Planes y Pagos | 7 | 0 |
-| 8 | Deploy Producción | 9 | 0 |
-| **Total** | | **57** | **2** |
+| 8 | Deploy Producción | 9 | 5 |
+| **Total** | | **57** | **16** |
 
 ---
 
 *Generado el 23 de Abril de 2026 — Dewoc · IAFacturas*
+*Actualizado el 24 de Abril de 2026 — Fase 2 completada, deploy en producción funcionando*
