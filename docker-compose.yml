@@ -110,14 +110,20 @@ services:
 
   # ─────────────────────────────────────────────
   # Nginx — reverse proxy + static files
-  # Puerto 8080 en el host → el Nginx/Apache del VPS
-  # hace: iafacturas.dewoc.com → localhost:8080
+  # Traefik rutea iafacturas.dewoc.com → este contenedor (SSL automático)
   # ─────────────────────────────────────────────
   nginx:
     image: nginx:1.25-alpine
     container_name: iafacturas_nginx
     ports:
-      - "8082:80"   # VPS host-nginx proxea iafacturas.dewoc.com → localhost:8082
+      - "8082:80"   # acceso directo para testing interno
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.iafacturas.rule=Host(`iafacturas.dewoc.com`)
+      - traefik.http.routers.iafacturas.entrypoints=web,websecure
+      - traefik.http.routers.iafacturas.tls=true
+      - traefik.http.routers.iafacturas.tls.certresolver=mytlschallenge
+      - traefik.http.services.iafacturas.loadbalancer.server.port=80
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./app/static:/app/static:ro
@@ -127,6 +133,7 @@ services:
     restart: unless-stopped
     networks:
       - iafacturas_net
+      - n8n_evoapi
 
 volumes:
   postgres_data:
@@ -136,3 +143,5 @@ volumes:
 networks:
   iafacturas_net:
     driver: bridge
+  n8n_evoapi:
+    external: true   # red compartida con Traefik
