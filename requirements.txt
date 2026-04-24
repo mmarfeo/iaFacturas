@@ -37,7 +37,7 @@ python-multipart==0.0.12  # upload de archivos
 openpyxl==3.1.5
 
 # Pagos
-mercadopago==2.2.4
+mercadopago==2.4.0
 
 # Templates
 jinja2==3.1.4
