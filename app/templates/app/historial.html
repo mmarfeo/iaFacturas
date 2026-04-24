@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Historial{% endblock %}
+
+{% block content %}
+<div class="ia-page" style="background:var(--bs-body-bg); min-height:100vh">
+  <div class="container-xl" style="padding:36px 24px">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+      <div>
+        <h1 class="fw-bold mb-1" style="font-size:clamp(20px,3vw,24px); letter-spacing:-0.5px; color:var(--bs-body-color)">
+          Historial
+        </h1>
+        <p class="mb-0" style="font-size:13px; color:var(--ia-sub)">
+          {{ total or 0 }} facturas procesadas
+        </p>
+      </div>
+      <a href="/app/upload" class="btn btn-primary fw-bold"
+         style="padding:10px 18px; border-radius:10px; font-size:14px">
+        + Analizar factura
+      </a>
+    </div>
+
+    <!-- Filters -->
+    <form method="GET" action="/app/historial" id="filter-form">
+      <div class="ia-filter-bar d-flex flex-wrap gap-2 align-items-center mb-3">
+        <div class="flex-grow-1 position-relative" style="min-width:180px">
+          <span class="position-absolute" style="left:10px; top:50%; transform:translateY(-50%); color:var(--ia-sub); font-size:13px">🔍</span>
+          <input type="search" name="q" value="{{ search or '' }}"
+                 class="form-control ia-input ps-5" placeholder="Buscar por nombre, CUIT..."
+                 style="padding-left:34px!important"
+                 oninput="document.getElementById('filter-form').submit()">
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <button type="submit" name="cae" value="todos"
+                  class="ia-filter-btn {{ 'active' if not filter_cae or filter_cae == 'todos' else '' }}">
+            Todos
+          </button>
+          <button type="submit" name="cae" value="VIGENTE"
+                  class="ia-filter-btn {{ 'active' if filter_cae == 'VIGENTE' else '' }}">
+            Vigentes ✅
+          </button>
+          <button type="submit" name="cae" value="VENCIDO"
+                  class="ia-filter-btn {{ 'active' if filter_cae == 'VENCIDO' else '' }}">
+            Vencidos ❌
+          </button>
+        </div>
+        <a href="/app/historial/export/excel?q={{ search or '' }}&cae={{ filter_cae or '' }}"
+           class="ia-filter-btn text-decoration-none d-none d-md-inline-block">
+          📥 Excel
+        </a>
+      </div>
+    </form>
+
+    <!-- Table (md+) -->
+    <div class="ia-table-card d-none d-md-block">
+      <!-- Head -->
+      <div class="ia-table-head">
+        <div class="row gx-3 align-items-center">
+          <div class="col-4" style="font-size:11px; font-weight:700; color:var(--ia-sub); text-transform:uppercase; letter-spacing:0.4px">Archivo / Proveedor</div>
+          <div class="col-2 d-none d-lg-block" style="font-size:11px; font-weight:700; color:var(--ia-sub); text-transform:uppercase; letter-spacing:0.4px">CUIT Emisor</div>
+          <div class="col-2 d-none d-lg-block" style="font-size:11px; font-weight:700; color:var(--ia-sub); text-transform:uppercase; letter-spacing:0.4px">Comprobante</div>
+          <div class="col-2 col-lg-1" style="font-size:11px; font-weight:700; color:var(--ia-sub); text-transform:uppercase; letter-spacing:0.4px">Fecha</div>
+          <div class="col-3 col-lg-2" style="font-size:11px; font-weight:700; color:var(--ia-sub); text-transform:uppercase; letter-spacing:0.4px">Importe</div>
+          <div class="col-3 col-lg-1 text-end" style="font-size:11px; font-weight:700; color:var(--ia-sub); text-transform:uppercase; letter-spacing:0.4px">CAE</div>
+        </div>
+      </div>
+
+      {% if facturas %}
+        {% for f in facturas %}
+          {% set d = f.datos_extraidos or {} %}
+          <a href="/app/facturas/{{ f.id }}"
+             class="text-decoration-none"
+             style="display:block; padding:14px 20px; border-bottom:{{ '1px solid var(--bs-border-color)' if not loop.last else 'none' }}; transition:background 0.12s; color:inherit"
+             onmouseover="this.style.background='rgba(0,0,0,0.02)'"
+             onmouseout="this.style.background='transparent'">
+            <div class="row gx-3 align-items-center">
+              <div class="col-4">
+                <div class="fw-semibold" style="font-size:13px; color:var(--bs-body-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">
+                  {{ f.archivo_path | replace('uploads/', '') }}
+                </div>
+                <div style="font-size:12px; color:var(--ia-sub)">
+                  {{ d.get('razon_social_emisor', f.cuit_emisor or '—') }}
+                </div>
+              </div>
+              <div class="col-2 d-none d-lg-block" style="font-size:12px; font-family:monospace; color:var(--bs-body-color)">
+                {{ f.cuit_emisor or '—' }}
+              </div>
+              <div class="col-2 d-none d-lg-block" style="font-size:12px; color:var(--ia-sub)">
+                Fact. {{ d.get('tipo_comprobante', 'A') }}
+              </div>
+              <div class="col-2 col-lg-1" style="font-size:13px; color:var(--ia-sub)">
+                {{ f.fecha_factura.strftime('%d/%m/%Y') if f.fecha_factura else '—' }}
+              </div>
+              <div class="col-3 col-lg-2 fw-bold" style="font-size:13px; color:var(--bs-body-color)">
+                {% if f.importe %}${{ "{:,.0f}".format(f.importe) }}{% else %}—{% endif %}
+              </div>
+              <div class="col-3 col-lg-1 text-end">
+                {% if f.cae_valido %}
+                  <span class="ia-badge-vigente">VIGENTE</span>
+                {% else %}
+                  <span class="ia-badge-vencido">VENCIDO</span>
+                {% endif %}
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      {% else %}
+        <div class="p-5 text-center" style="color:var(--ia-sub); font-size:14px">
+          No se encontraron facturas.
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Card list (mobile) -->
+    <div class="d-md-none d-flex flex-column gap-2">
+      {% if facturas %}
+        {% for f in facturas %}
+          {% set d = f.datos_extraidos or {} %}
+          <a href="/app/facturas/{{ f.id }}"
+             class="ia-card text-decoration-none p-3" style="color:inherit; border-radius:14px">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div class="flex-grow-1 pe-2">
+                <div class="fw-bold" style="font-size:14px; color:var(--bs-body-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">
+                  {{ f.archivo_path | replace('uploads/', '') }}
+                </div>
+                <div style="font-size:12px; color:var(--ia-sub)">
+                  {{ d.get('razon_social_emisor', '—') }}
+                </div>
+              </div>
+              {% if f.cae_valido %}
+                <span class="ia-badge-vigente">VIGENTE</span>
+              {% else %}
+                <span class="ia-badge-vencido">VENCIDO</span>
+              {% endif %}
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <div style="font-size:10px; font-weight:600; color:var(--ia-sub); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px">CUIT</div>
+                <div class="fw-semibold" style="font-size:13px; color:var(--bs-body-color)">{{ f.cuit_emisor or '—' }}</div>
+              </div>
+              <div class="col-6">
+                <div style="font-size:10px; font-weight:600; color:var(--ia-sub); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px">Tipo</div>
+                <div class="fw-semibold" style="font-size:13px; color:var(--bs-body-color)">Fact. {{ d.get('tipo_comprobante', 'A') }}</div>
+              </div>
+              <div class="col-6">
+                <div style="font-size:10px; font-weight:600; color:var(--ia-sub); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px">Fecha</div>
+                <div class="fw-semibold" style="font-size:13px; color:var(--bs-body-color)">
+                  {{ f.fecha_factura.strftime('%d/%m/%Y') if f.fecha_factura else '—' }}
+                </div>
+              </div>
+              <div class="col-6">
+                <div style="font-size:10px; font-weight:600; color:var(--ia-sub); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px">Importe</div>
+                <div class="fw-semibold" style="font-size:13px; color:var(--bs-body-color)">
+                  {% if f.importe %}${{ "{:,.0f}".format(f.importe) }}{% else %}—{% endif %}
+                </div>
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      {% else %}
+        <div class="ia-card p-5 text-center" style="color:var(--ia-sub); font-size:14px; border-radius:14px">
+          No se encontraron facturas.
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages and total_pages > 1 %}
+      <div class="d-flex justify-content-center gap-2 mt-4">
+        {% for p in range(1, total_pages + 1) %}
+          <a href="?q={{ search or '' }}&cae={{ filter_cae or '' }}&page={{ p }}"
+             class="btn btn-sm {% if p == current_page %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+             style="width:34px; height:34px; border-radius:8px; padding:0; display:flex; align-items:center; justify-content:center; font-weight:600">
+            {{ p }}
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

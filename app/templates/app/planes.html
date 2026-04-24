@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}Planes y Precios{% endblock %}
+
+{% block content %}
+<div class="ia-page" style="background:var(--bs-body-bg); min-height:100vh">
+  <div class="container" style="max-width:1000px; padding:52px 24px">
+
+    <!-- Header -->
+    <div class="text-center mb-5">
+      <h1 class="fw-bold mb-2" style="font-size:clamp(26px,4vw,34px); letter-spacing:-0.8px; color:var(--bs-body-color)">
+        Planes y precios
+      </h1>
+      <p class="mb-4" style="font-size:15px; color:var(--ia-sub)">
+        Empezá gratis. Actualizá cuando lo necesites.
+      </p>
+
+      <!-- Billing toggle -->
+      <div class="ia-billing-toggle">
+        <button class="ia-billing-btn active" id="btn-mensual" onclick="setBilling('mensual')">
+          Mensual
+        </button>
+        <button class="ia-billing-btn" id="btn-anual" onclick="setBilling('anual')">
+          Anual · 20% off
+        </button>
+      </div>
+    </div>
+
+    <!-- Success message -->
+    {% if success %}
+      <div class="alert text-center mb-4"
+           style="border-radius:12px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#22c55e; font-weight:600; font-size:14px">
+        ✅ ¡Suscripción activada! Tu plan Pro ya está activo.
+      </div>
+    {% endif %}
+
+    <!-- Plans grid -->
+    <div class="row g-3 align-items-start mb-5">
+
+      <!-- Free -->
+      <div class="col-12 col-md-6 col-lg-4 order-md-1">
+        <div class="ia-plan-card">
+          <div class="mb-4">
+            <div class="fw-bold mb-1" style="font-size:13px; color:var(--ia-sub); text-transform:uppercase; letter-spacing:0.5px">Free</div>
+            <div class="d-flex align-items-baseline gap-1 mb-1">
+              <span class="fw-bold" style="font-size:30px; color:var(--bs-body-color); letter-spacing:-1px">$0</span>
+              <span style="font-size:13px; color:var(--ia-sub)">siempre gratis</span>
+            </div>
+            <div style="font-size:13px; color:var(--ia-sub)">Para probar la plataforma.</div>
+          </div>
+
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:var(--bs-body-color)">
+              <span class="fw-bold" style="color:#22c55e">✓</span> 10 facturas por mes
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:var(--bs-body-color)">
+              <span class="fw-bold" style="color:#22c55e">✓</span> OCR + Regex
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:var(--bs-body-color)">
+              <span class="fw-bold" style="color:#22c55e">✓</span> Validación CAE
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:var(--bs-body-color)">
+              <span class="fw-bold" style="color:#22c55e">✓</span> Exportar JSON
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:var(--bs-body-color)">
+              <span class="fw-bold" style="color:#22c55e">✓</span> Historial 30 días
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:rgba(148,163,184,0.5)">
+              <span>–</span> <span style="text-decoration:line-through">No incluido</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:rgba(148,163,184,0.5)">
+              <span>–</span> <span style="text-decoration:line-through">No incluido</span>
+            </div>
+          </div>
+
+          <a href="/app/upload" class="btn w-100 fw-bold"
+             style="border-radius:10px; padding:12px; font-size:14px; background:rgba(0,0,0,0.07); color:var(--bs-body-color)">
+            Empezar gratis
+          </a>
+        </div>
+      </div>
+
+      <!-- Pro (highlighted) -->
+      <div class="col-12 col-md-6 col-lg-4 order-md-0 order-lg-1">
+        <div class="ia-plan-card highlight">
+          <div class="mb-2">
+            <span class="d-inline-block px-3 py-1 rounded-pill mb-2"
+                  style="background:rgba(255,255,255,0.2); color:#fff; font-size:11px; font-weight:800">
+              Más popular
+            </span>
+          </div>
+          <div class="mb-4">
+            <div class="fw-bold mb-1" style="font-size:13px; color:rgba(255,255,255,0.65); text-transform:uppercase; letter-spacing:0.5px">Pro</div>
+            <div class="d-flex align-items-baseline gap-1 mb-1">
+              <span id="pro-price" class="fw-bold" style="font-size:30px; color:#fff; letter-spacing:-1px">$9.990</span>
+              <span id="pro-period" style="font-size:13px; color:rgba(255,255,255,0.55)">/mes</span>
+            </div>
+            <div style="font-size:13px; color:rgba(255,255,255,0.65)">Para contadores y PyMEs.</div>
+          </div>
+
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:rgba(255,255,255,0.9)">
+              <span class="fw-bold" style="color:#86efac">✓</span> Facturas ilimitadas
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:rgba(255,255,255,0.9)">
+              <span class="fw-bold" style="color:#86efac">✓</span> OCR + Regex + IA
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:rgba(255,255,255,0.9)">
+              <span class="fw-bold" style="color:#86efac">✓</span> Validación CAE
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:rgba(255,255,255,0.9)">
+              <span class="fw-bold" style="color:#86efac">✓</span> Exportar JSON y Excel
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:rgba(255,255,255,0.9)">
+              <span class="fw-bold" style="color:#86efac">✓</span> Historial ilimitado
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:rgba(255,255,255,0.9)">
+              <span class="fw-bold" style="color:#86efac">✓</span> Soporte prioritario
+            </div>
+            <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:rgba(255,255,255,0.9)">
+              <span class="fw-bold" style="color:#86efac">✓</span> API access (pronto)
+            </div>
+          </div>
+
+          {% if user and user.plan_nombre == 'Pro' %}
+            <button class="btn w-100 fw-bold disabled"
+                    style="border-radius:10px; padding:12px; background:#fff; color:#1d4ed8; font-size:14px">
+              Plan actual ✓
+            </button>
+          {% else %}
+            <a href="/planes/contratar/pro"
+               class="btn w-100 fw-bold"
+               style="border-radius:10px; padding:12px; background:#fff; color:#1d4ed8; font-size:14px">
+              Contratar Plan Pro
+            </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Empresa -->
+      <div class="col-12 col-md-12 col-lg-4 order-2">
+        <div class="ia-plan-card">
+          <div class="mb-2">
+            <span class="d-inline-block px-3 py-1 rounded-pill mb-2"
+                  style="background:var(--ia-muted-bg); color:var(--ia-sub); font-size:11px; font-weight:800">
+              Próximamente
+            </span>
+          </div>
+          <div class="mb-4">
+            <div class="fw-bold mb-1" style="font-size:13px; color:var(--ia-sub); text-transform:uppercase; letter-spacing:0.5px">Empresa</div>
+            <div class="d-flex align-items-baseline gap-1 mb-1">
+              <span class="fw-bold" style="font-size:30px; color:var(--bs-body-color); letter-spacing:-1px">A consultar</span>
+            </div>
+            <div style="font-size:13px; color:var(--ia-sub)">Para estudios y grandes volúmenes.</div>
+          </div>
+
+          <div class="mb-4">
+            {% for feat in ['Todo lo de Pro', 'Multi-usuario', 'API dedicada + ERP', 'SLA garantizado', 'Onboarding personalizado', 'ARS o USD', 'Soporte 24/7'] %}
+              <div class="d-flex align-items-center gap-2 py-2" style="font-size:13px; color:var(--bs-body-color)">
+                <span class="fw-bold" style="color:#22c55e">✓</span> {{ feat }}
+              </div>
+            {% endfor %}
+          </div>
+
+          <button class="btn w-100 fw-bold" disabled
+                  style="border-radius:10px; padding:12px; font-size:14px; background:rgba(0,0,0,0.07); color:var(--ia-sub); cursor:not-allowed; opacity:0.5">
+            Próximamente
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FAQ -->
+    <div>
+      <h2 class="fw-bold text-center mb-4"
+          style="font-size:clamp(20px,3vw,24px); letter-spacing:-0.5px; color:var(--bs-body-color)">
+        Preguntas frecuentes
+      </h2>
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <div class="ia-faq-card">
+            <div class="fw-bold mb-2" style="font-size:14px; color:var(--bs-body-color)">¿Qué es el CAE?</div>
+            <div style="font-size:13px; color:var(--ia-sub); line-height:1.65">
+              El Código de Autorización Electrónico es el código que emite AFIP para validar una factura electrónica.
+              IAFacturas lo consulta en tiempo real.
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="ia-faq-card">
+            <div class="fw-bold mb-2" style="font-size:14px; color:var(--bs-body-color)">¿Puedo cancelar en cualquier momento?</div>
+            <div style="font-size:13px; color:var(--ia-sub); line-height:1.65">
+              Sí. El plan Pro se cancela desde tu panel con un click. Sin contratos ni penalidades.
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="ia-faq-card">
+            <div class="fw-bold mb-2" style="font-size:14px; color:var(--bs-body-color)">¿Con qué medios de pago puedo pagar?</div>
+            <div style="font-size:13px; color:var(--ia-sub); line-height:1.65">
+              Aceptamos todos los medios de MercadoPago: tarjetas, transferencia y efectivo.
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="ia-faq-card">
+            <div class="fw-bold mb-2" style="font-size:14px; color:var(--bs-body-color)">¿Los archivos se guardan?</div>
+            <div style="font-size:13px; color:var(--ia-sub); line-height:1.65">
+              Sí. Podés eliminarlos desde el historial en cualquier momento.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function setBilling(billing) {
+    var isMensual = billing === 'mensual';
+    document.getElementById('btn-mensual').classList.toggle('active', isMensual);
+    document.getElementById('btn-anual').classList.toggle('active', !isMensual);
+    document.getElementById('pro-price').textContent  = isMensual ? '$9.990' : '$7.990';
+    document.getElementById('pro-period').textContent = isMensual ? '/mes' : '/mes (anual)';
+  }
+</script>
+{% endblock %}

@@ -1,7 +1,7 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.database import engine, Base
@@ -9,7 +9,7 @@ from app.core.database import engine, Base
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Crear tablas al arrancar (en producción usar Alembic)
+    # En producción las tablas se crean con Alembic; esto es útil en dev
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -24,25 +24,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Static files y templates
+# ── Static files ──────────────────────────────────────────────────────────────
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
+
+# ── Routers ───────────────────────────────────────────────────────────────────
+from app.routers import auth, facturas          # noqa: E402
+
+app.include_router(auth.router)
+app.include_router(facturas.router)
 
 
-# ── Routers (se irán agregando por fase) ─────────────────────────────────────
-
-# from app.routers import facturas, cae, auth, planes
-# app.include_router(facturas.router, prefix="/facturas", tags=["Facturas"])
-# app.include_router(cae.router, prefix="/cae", tags=["CAE AFIP"])
-# app.include_router(planes.router, prefix="/planes", tags=["Planes"])
-
-
-@app.get("/health")
+# ── Health check ──────────────────────────────────────────────────────────────
+@app.get("/health", tags=["Sistema"])
 async def health():
     return {"status": "ok", "app": "IAFacturas", "version": "1.0.0"}
-
-
-@app.get("/")
-async def landing(request):
-    from fastapi import Request
-    return templates.TemplateResponse("landing.html", {"request": request})

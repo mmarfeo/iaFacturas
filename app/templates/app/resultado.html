@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}Resultado — {{ factura.archivo_path | replace('uploads/', '') if factura else 'Factura' }}{% endblock %}
+
+{% block content %}
+<div class="ia-page" style="background:var(--bs-body-bg); min-height:100vh">
+  <div class="container" style="max-width:900px; padding:40px 24px">
+
+    <!-- Back -->
+    <a href="/app/dashboard" class="text-decoration-none fw-medium d-block mb-3"
+       style="font-size:13px; color:var(--ia-sub)">← Volver</a>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+          <h1 class="fw-bold mb-0" style="font-size:clamp(17px,3vw,20px); color:var(--bs-body-color)">
+            {% if factura %}
+              {{ factura.archivo_path | replace('uploads/', '') }}
+            {% else %}
+              Factura-TechSol.pdf
+            {% endif %}
+          </h1>
+          {% if factura and factura.cae_valido %}
+            <span class="ia-badge-vigente">CAE VIGENTE</span>
+          {% elif factura %}
+            <span class="ia-badge-vencido">CAE VENCIDO</span>
+          {% else %}
+            <span class="ia-badge-vigente">CAE VIGENTE</span>
+          {% endif %}
+        </div>
+        <p class="mb-0" style="font-size:12px; color:var(--ia-sub)">
+          Procesado el
+          {% if factura and factura.created_at %}
+            {{ factura.created_at.strftime('%d/%m/%Y %H:%M') }}
+          {% else %}
+            22/04/2026 14:32
+          {% endif %}
+        </p>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap">
+        <button id="btn-copy-json" onclick="copyJson()"
+                class="btn btn-outline-secondary fw-semibold"
+                style="padding:8px 14px; border-radius:9px; font-size:13px">
+          📋 JSON
+        </button>
+        <a href="/app/facturas/{{ factura.id if factura else 0 }}/export/excel"
+           class="btn btn-primary fw-bold"
+           style="padding:8px 14px; border-radius:9px; font-size:13px">
+          📥 Excel
+        </a>
+      </div>
+    </div>
+
+    <!-- CAE Banner -->
+    {% set cae_ok = factura.cae_valido if factura else True %}
+    <div class="ia-cae-banner d-flex align-items-start gap-3 mb-3 {{ 'vigente' if cae_ok else 'vencido' }}">
+      <span style="font-size:22px; flex-shrink:0">{{ '✅' if cae_ok else '❌' }}</span>
+      <div>
+        <div class="fw-bold" style="font-size:14px; color:{{ '#22c55e' if cae_ok else '#ef4444' }}">
+          CAE {{ 'VIGENTE' if cae_ok else 'VENCIDO' }}
+        </div>
+        <div style="font-size:12px; color:var(--ia-sub); margin-top:2px; line-height:1.6">
+          Código:
+          <span class="fw-bold" style="font-family:monospace; color:var(--bs-body-color); word-break:break-all">
+            {{ factura.cae if factura else '74123456789012' }}
+          </span>
+          · Vence:
+          <span class="fw-bold" style="color:var(--bs-body-color)">
+            {% if factura and factura.cae_vencimiento %}
+              {{ factura.cae_vencimiento.strftime('%d/%m/%Y') }}
+            {% else %}
+              25/04/2026
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="ia-tab-bar mb-3" style="width:fit-content">
+      <button class="ia-tab-btn active" id="tab-datos" onclick="switchTab('datos')">Datos</button>
+      <button class="ia-tab-btn" id="tab-json" onclick="switchTab('json')">JSON</button>
+    </div>
+
+    <!-- Tab: Datos -->
+    <div id="content-datos">
+      {% set d = factura.datos_extraidos if factura and factura.datos_extraidos else {} %}
+      <div class="row g-3">
+
+        <div class="col-12 col-md-6">
+          <div class="ia-result-section">
+            <div class="ia-section-title">Comprobante</div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">Tipo</span>
+              <span class="ia-field-value">{{ d.get('tipo_comprobante', 'Factura A') }}</span>
+            </div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">N° factura</span>
+              <span class="ia-field-value text-accent" style="font-family:monospace">
+                {{ d.get('punto_venta', '0001') }}-{{ d.get('numero', '00002847') }}
+              </span>
+            </div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">Fecha emisión</span>
+              <span class="ia-field-value">
+                {% if factura and factura.fecha_factura %}
+                  {{ factura.fecha_factura.strftime('%d/%m/%Y') }}
+                {% else %}
+                  {{ d.get('fecha_emision', '22/04/2026') }}
+                {% endif %}
+              </span>
+            </div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">Concepto</span>
+              <span class="ia-field-value">{{ d.get('concepto', '—') }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <div class="ia-result-section">
+            <div class="ia-section-title">Importes</div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">Neto gravado</span>
+              <span class="ia-field-value">{{ d.get('importe_neto', '—') }}</span>
+            </div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">IVA 21%</span>
+              <span class="ia-field-value">{{ d.get('iva_21', '—') }}</span>
+            </div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">Total</span>
+              <span class="ia-field-value fw-bold" style="color:#22c55e">
+                {% if factura and factura.importe %}
+                  ${{ "{:,.2f}".format(factura.importe) }}
+                {% else %}
+                  {{ d.get('importe_total', '—') }}
+                {% endif %}
+              </span>
+            </div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">Moneda</span>
+              <span class="ia-field-value">{{ d.get('moneda', 'ARS') }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <div class="ia-result-section">
+            <div class="ia-section-title">Emisor</div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">CUIT</span>
+              <span class="ia-field-value text-accent" style="font-family:monospace">
+                {{ factura.cuit_emisor if factura else d.get('cuit_emisor', '—') }}
+              </span>
+            </div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">Razón social</span>
+              <span class="ia-field-value">{{ d.get('razon_social_emisor', '—') }}</span>
+            </div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">Condición IVA</span>
+              <span class="ia-field-value">{{ d.get('condicion_iva_emisor', '—') }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <div class="ia-result-section">
+            <div class="ia-section-title">Receptor</div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">CUIT</span>
+              <span class="ia-field-value text-accent" style="font-family:monospace">
+                {{ factura.cuit_receptor if factura else d.get('cuit_receptor', '—') }}
+              </span>
+            </div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">Razón social</span>
+              <span class="ia-field-value">{{ d.get('razon_social_receptor', '—') }}</span>
+            </div>
+            <div class="ia-field-row">
+              <span class="ia-field-label">Condición IVA</span>
+              <span class="ia-field-value">{{ d.get('condicion_iva_receptor', '—') }}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tab: JSON -->
+    <div id="content-json" style="display:none">
+      <div class="ia-json-block">
+        <button onclick="copyJson()"
+                id="json-copy-btn"
+                class="btn btn-sm btn-primary fw-bold"
+                style="position:absolute; top:14px; right:14px; font-size:12px; border-radius:7px">
+          Copiar
+        </button>
+        <pre id="json-content">{{ factura.datos_extraidos | tojson(indent=2) if factura and factura.datos_extraidos else '{\n  "cae": "74123456789012",\n  "estado": "VIGENTE"\n}' }}</pre>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="d-flex gap-2 mt-4 flex-wrap">
+      <a href="/app/upload" class="btn btn-primary fw-bold"
+         style="padding:10px 20px; border-radius:10px">+ Analizar otra</a>
+      <a href="/app/historial" class="btn btn-outline-secondary fw-semibold"
+         style="padding:10px 20px; border-radius:10px">Ver historial</a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function switchTab(tab) {
+    document.getElementById('content-datos').style.display = tab === 'datos' ? '' : 'none';
+    document.getElementById('content-json').style.display  = tab === 'json'  ? '' : 'none';
+    document.getElementById('tab-datos').classList.toggle('active', tab === 'datos');
+    document.getElementById('tab-json').classList.toggle('active',  tab === 'json');
+  }
+
+  function copyJson() {
+    var txt = document.getElementById('json-content').textContent;
+    navigator.clipboard.writeText(txt).then(function() {
+      var btn = document.getElementById('btn-copy-json');
+      var jbtn = document.getElementById('json-copy-btn');
+      [btn, jbtn].forEach(function(b) {
+        if (b) { var orig = b.textContent; b.textContent = '✅ Copiado'; setTimeout(function() { b.textContent = orig; }, 2000); }
+      });
+    });
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Ingresar{% endblock %}
+
+{% block content %}
+<div class="ia-page d-flex align-items-center justify-content-center" style="min-height:100vh; padding:40px 16px">
+  <div style="width:100%; max-width:420px">
+
+    <!-- Logo -->
+    <div class="text-center mb-4">
+      <a href="/" class="ia-logo d-inline-flex text-decoration-none">
+        <div class="ia-logo-icon" style="width:38px; height:38px; font-size:14px">IA</div>
+        <span class="ia-logo-text" style="font-size:20px"><span class="text-accent">IA</span>Facturas</span>
+      </a>
+    </div>
+
+    <!-- Card -->
+    <div class="ia-auth-card">
+
+      <!-- Tabs -->
+      <div class="ia-tab-bar mb-4">
+        <a href="/auth/login" class="ia-tab-btn active text-decoration-none text-center">Ingresar</a>
+        <a href="/auth/register" class="ia-tab-btn text-decoration-none text-center">Registrarse</a>
+      </div>
+
+      <!-- Error -->
+      {% if error %}
+        <div class="alert mb-3 py-2 px-3" style="border-radius:8px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); color:#ef4444; font-size:13px">
+          {{ error }}
+        </div>
+      {% endif %}
+
+      <!-- Form -->
+      <form method="POST" action="/auth/login">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+        <div class="mb-3">
+          <label class="d-block mb-1 fw-semibold" style="font-size:13px; color:var(--ia-sub)">Email</label>
+          <input type="email" name="email" class="form-control ia-input"
+                 placeholder="tu@email.com" value="{{ form_email or '' }}" required>
+        </div>
+
+        <div class="mb-4">
+          <label class="d-block mb-1 fw-semibold" style="font-size:13px; color:var(--ia-sub)">Contraseña</label>
+          <input type="password" name="password" class="form-control ia-input"
+                 placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 fw-bold"
+                style="padding:13px; border-radius:10px; font-size:15px">
+          Ingresar →
+        </button>
+      </form>
+
+      <div class="text-center mt-3">
+        <span style="font-size:13px; color:var(--ia-sub)">¿No tenés cuenta? </span>
+        <a href="/auth/register" class="fw-semibold text-decoration-none text-accent" style="font-size:13px">
+          Registrate gratis
+        </a>
+      </div>
+    </div>
+
+    <p class="text-center mt-3 mb-0" style="font-size:12px; color:var(--ia-sub)">
+      Al continuar aceptás los Términos y Política de privacidad de Dewoc.
+    </p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% block title %}Analizar factura{% endblock %}
+
+{% block content %}
+<div class="ia-page" style="background:var(--bs-body-bg); min-height:100vh">
+  <div class="container" style="max-width:720px; padding:48px 24px">
+
+    <!-- Header -->
+    <div class="mb-4">
+      <a href="/app/dashboard"
+         class="text-decoration-none fw-medium d-block mb-3"
+         style="font-size:13px; color:var(--ia-sub)">← Volver al dashboard</a>
+      <h1 class="fw-bold mb-1"
+          style="font-size:26px; letter-spacing:-0.5px; color:var(--bs-body-color)">
+        Analizar factura
+      </h1>
+      <p class="mb-0" style="font-size:14px; color:var(--ia-sub)">
+        Subí un PDF de factura electrónica AFIP y extraemos todos los datos automáticamente.
+      </p>
+    </div>
+
+    <!-- Upload zone (estado idle/dragging) -->
+    <div id="zone-idle">
+      <div id="upload-zone" class="ia-upload-zone" onclick="document.getElementById('file-input').click()">
+        <input id="file-input" type="file" accept=".pdf" style="display:none">
+        <div style="font-size:48px; margin-bottom:16px">📂</div>
+        <div id="zone-text" class="fw-bold mb-2" style="font-size:18px; color:var(--bs-body-color)">
+          Arrastrá un PDF o hacé clic
+        </div>
+        <div class="mb-4" style="font-size:14px; color:var(--ia-sub)">
+          Soportamos facturas A, B, C y M — hasta 20MB por archivo
+        </div>
+        <button type="button" class="btn btn-primary fw-bold" style="border-radius:9px; padding:10px 24px">
+          Seleccionar PDF
+        </button>
+      </div>
+
+      <!-- Tips -->
+      <div class="ia-tips mt-3">
+        <div class="fw-bold mb-2 text-accent" style="font-size:13px">💡 Tips para mejores resultados</div>
+        <div class="d-flex flex-column gap-1">
+          <div style="font-size:13px; color:var(--ia-sub)">· Usá el PDF original de la factura electrónica, no una foto o escaneo de baja calidad.</div>
+          <div style="font-size:13px; color:var(--ia-sub)">· Aceptamos facturas A, B, C y M emitidas por cualquier proveedor fiscal AFIP.</div>
+          <div style="font-size:13px; color:var(--ia-sub)">· Si el archivo está protegido con contraseña, quitala antes de subir.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Uploading -->
+    <div id="zone-uploading" style="display:none">
+      <div class="ia-card p-5 text-center" style="border-radius:18px">
+        <div style="font-size:36px; margin-bottom:16px">📤</div>
+        <div class="fw-bold mb-1" style="font-size:17px; color:var(--bs-body-color)">
+          Subiendo <span id="upload-filename">factura.pdf</span>
+        </div>
+        <div id="upload-pct" class="mb-4" style="font-size:13px; color:var(--ia-sub)">0%</div>
+        <div class="ia-progress">
+          <div id="upload-bar" class="ia-progress-bar" style="width:0%; background:linear-gradient(90deg,#1d4ed8,#2563eb)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Processing steps -->
+    <div id="zone-processing" style="display:none">
+      <div class="ia-card p-4" style="border-radius:18px">
+        <div class="fw-bold text-center mb-4" style="font-size:16px; color:var(--bs-body-color)">
+          Procesando <span id="proc-filename">factura.pdf</span>...
+        </div>
+
+        <div id="steps-list">
+          <div class="step-item d-flex align-items-center gap-3 py-3 border-bottom" style="border-color:var(--bs-border-color)!important" data-step="0">
+            <div class="ia-step-icon">🔍</div>
+            <div class="flex-grow-1">
+              <div class="fw-semibold" style="font-size:14px; color:var(--ia-sub)">Extrayendo texto con OCR</div>
+            </div>
+          </div>
+          <div class="step-item d-flex align-items-center gap-3 py-3 border-bottom" style="border-color:var(--bs-border-color)!important; opacity:.35" data-step="1">
+            <div class="ia-step-icon">🧮</div>
+            <div class="flex-grow-1">
+              <div class="fw-semibold" style="font-size:14px; color:var(--ia-sub)">Aplicando regex AFIP</div>
+            </div>
+          </div>
+          <div class="step-item d-flex align-items-center gap-3 py-3 border-bottom" style="border-color:var(--bs-border-color)!important; opacity:.35" data-step="2">
+            <div class="ia-step-icon">🏛️</div>
+            <div class="flex-grow-1">
+              <div class="fw-semibold" style="font-size:14px; color:var(--ia-sub)">Validando CAE en AFIP</div>
+            </div>
+          </div>
+          <div class="step-item d-flex align-items-center gap-3 py-3 border-bottom" style="border-color:var(--bs-border-color)!important; opacity:.35" data-step="3">
+            <div class="ia-step-icon">🤖</div>
+            <div class="flex-grow-1">
+              <div class="fw-semibold" style="font-size:14px; color:var(--ia-sub)">Procesando con IA</div>
+            </div>
+          </div>
+          <div class="step-item d-flex align-items-center gap-3 py-3" data-step="4" style="opacity:.35">
+            <div class="ia-step-icon">💾</div>
+            <div class="flex-grow-1">
+              <div class="fw-semibold" style="font-size:14px; color:var(--ia-sub)">Guardando resultado</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Done -->
+    <div id="zone-done" style="display:none">
+      <div class="ia-card p-5 text-center" style="border-radius:18px; border-color:rgba(34,197,94,0.4)!important">
+        <div style="font-size:48px; margin-bottom:16px">✅</div>
+        <div class="fw-bold mb-2" style="font-size:20px; color:var(--bs-body-color)">
+          ¡Factura procesada exitosamente!
+        </div>
+        <div class="mb-4" style="font-size:14px; color:var(--ia-sub)">
+          Todos los datos fueron extraídos y el CAE fue validado en AFIP.
+        </div>
+        <div class="d-flex gap-2 justify-content-center flex-wrap">
+          <a id="result-link" href="/app/historial"
+             class="btn btn-primary fw-bold" style="border-radius:10px; padding:12px 24px">
+            Ver resultado →
+          </a>
+          <button onclick="resetUpload()"
+                  class="btn btn-outline-secondary fw-semibold" style="border-radius:10px; padding:12px 24px">
+            Subir otra factura
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  var currentFilename = '';
+  var jobId = null;
+
+  var zone       = document.getElementById('upload-zone');
+  var fileInput  = document.getElementById('file-input');
+
+  // Drag events
+  zone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    zone.classList.add('dragging');
+    document.getElementById('zone-text').textContent = '¡Soltá el archivo acá!';
+  });
+  zone.addEventListener('dragleave', function() {
+    zone.classList.remove('dragging');
+    document.getElementById('zone-text').textContent = 'Arrastrá un PDF o hacé clic';
+  });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.classList.remove('dragging');
+    var file = e.dataTransfer.files[0];
+    if (file) startUpload(file);
+  });
+
+  fileInput.addEventListener('change', function() {
+    if (this.files[0]) startUpload(this.files[0]);
+  });
+
+  function show(id) {
+    ['zone-idle','zone-uploading','zone-processing','zone-done'].forEach(function(z) {
+      document.getElementById(z).style.display = z === id ? '' : 'none';
+    });
+  }
+
+  function startUpload(file) {
+    currentFilename = file.name;
+    document.getElementById('upload-filename').textContent = file.name;
+    document.getElementById('proc-filename').textContent   = file.name;
+    show('zone-uploading');
+
+    var formData = new FormData();
+    formData.append('file', file);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/app/upload');
+
+    xhr.upload.addEventListener('progress', function(e) {
+      if (e.lengthComputable) {
+        var pct = Math.round((e.loaded / e.total) * 100);
+        document.getElementById('upload-bar').style.width = pct + '%';
+        document.getElementById('upload-pct').textContent = pct + '%';
+      }
+    });
+
+    xhr.addEventListener('load', function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          var data = JSON.parse(xhr.responseText);
+          jobId = data.job_id;
+          document.getElementById('result-link').href = '/app/facturas/' + jobId;
+        } catch(e) {}
+        show('zone-processing');
+        startPolling();
+      } else {
+        alert('Error al subir el archivo. Intentá nuevamente.');
+        resetUpload();
+      }
+    });
+
+    xhr.addEventListener('error', function() {
+      alert('Error de conexión. Intentá nuevamente.');
+      resetUpload();
+    });
+
+    xhr.send(formData);
+  }
+
+  var stepDurations = [1200, 900, 1100, 800, 600];
+
+  function startPolling() {
+    if (!jobId) { simulateSteps(); return; }
+    var interval = setInterval(function() {
+      fetch('/app/upload/estado/' + jobId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.step !== undefined) updateStep(data.step);
+          if (data.estado === 'done') {
+            clearInterval(interval);
+            show('zone-done');
+          } else if (data.estado === 'error') {
+            clearInterval(interval);
+            alert('Error al procesar la factura: ' + (data.error || 'error desconocido'));
+            resetUpload();
+          }
+        })
+        .catch(function() { /* ignorar errores de polling */ });
+    }, 1500);
+  }
+
+  function simulateSteps() {
+    var steps = document.querySelectorAll('.step-item');
+    var i = 0;
+    function runStep() {
+      updateStep(i);
+      if (i < steps.length - 1) {
+        setTimeout(function() { i++; runStep(); }, stepDurations[i] || 800);
+      } else {
+        setTimeout(function() { show('zone-done'); }, stepDurations[i] || 600);
+      }
+    }
+    runStep();
+  }
+
+  function updateStep(activeIdx) {
+    document.querySelectorAll('.step-item').forEach(function(el, i) {
+      var icon   = el.querySelector('.ia-step-icon');
+      var label  = el.querySelector('.fw-semibold');
+      var subDiv = el.querySelector('.step-sub');
+
+      el.style.opacity = i > activeIdx ? '0.35' : '1';
+
+      if (i < activeIdx) {
+        icon.className = 'ia-step-icon done';
+        icon.textContent = '✓';
+        label.style.color = '#22c55e';
+        if (!subDiv) {
+          var s = document.createElement('div');
+          s.className = 'step-sub';
+          s.style.cssText = 'font-size:12px; color:#22c55e; margin-top:2px';
+          s.textContent = 'Completado';
+          el.querySelector('.flex-grow-1').appendChild(s);
+        }
+        // remove spinner
+        var sp = el.querySelector('.ia-spinner');
+        if (sp) sp.remove();
+      } else if (i === activeIdx) {
+        icon.className = 'ia-step-icon active';
+        label.style.color = 'var(--bs-body-color)';
+        if (!subDiv) {
+          var s = document.createElement('div');
+          s.className = 'step-sub';
+          s.style.cssText = 'font-size:12px; color:var(--ia-sub); margin-top:2px';
+          s.textContent = 'En proceso...';
+          el.querySelector('.flex-grow-1').appendChild(s);
+        }
+        // add spinner if not present
+        if (!el.querySelector('.ia-spinner')) {
+          var sp = document.createElement('div');
+          sp.className = 'ia-spinner';
+          el.appendChild(sp);
+        }
+      }
+    });
+  }
+
+  function resetUpload() {
+    jobId = null;
+    fileInput.value = '';
+    document.getElementById('upload-bar').style.width = '0%';
+    document.getElementById('upload-pct').textContent = '0%';
+    // reset steps
+    document.querySelectorAll('.step-item').forEach(function(el, i) {
+      el.style.opacity = i === 0 ? '1' : '0.35';
+      var icon = el.querySelector('.ia-step-icon');
+      icon.className = 'ia-step-icon';
+      var emojis = ['🔍','🧮','🏛️','🤖','💾'];
+      icon.textContent = emojis[i];
+      var label = el.querySelector('.fw-semibold');
+      label.style.color = 'var(--ia-sub)';
+      var sub = el.querySelector('.step-sub');
+      if (sub) sub.remove();
+      var sp = el.querySelector('.ia-spinner');
+      if (sp) sp.remove();
+    });
+    show('zone-idle');
+  }
+</script>
+{% endblock %}
