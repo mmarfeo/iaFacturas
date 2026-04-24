@@ -13,7 +13,7 @@ pydantic[email]==2.9.2
 pydantic-settings==2.5.2
 
 # Auth
-fastapi-users[sqlalchemy]==13.0.0
+fastapi-users[sqlalchemy]
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
@@ -31,7 +31,7 @@ celery[redis]==5.4.0
 pytesseract==0.3.13
 pdf2image==1.17.0
 pdfplumber==0.11.4
-python-multipart==0.0.12  # upload de archivos
+python-multipart  # upload de archivos
 
 # Exportación
 openpyxl==3.1.5
