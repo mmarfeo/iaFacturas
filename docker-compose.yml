@@ -124,6 +124,7 @@ services:
       - traefik.http.routers.iafacturas.tls=true
       - traefik.http.routers.iafacturas.tls.certresolver=mytlschallenge
       - traefik.http.services.iafacturas.loadbalancer.server.port=80
+      - traefik.docker.network=n8n_evoapi
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./app/static:/app/static:ro
