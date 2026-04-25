@@ -4,7 +4,10 @@ from sqlalchemy import select, text
 from app.core.database import AsyncSessionLocal
 from app.models.plan import Plan
 from app.models.usuario import Usuario
-from app.core.security import hash_password
+import bcrypt as _bcrypt
+
+def hash_password(plain: str) -> str:
+    return _bcrypt.hashpw(plain.encode(), _bcrypt.gensalt()).decode()
 
 
 async def main():
