@@ -27,6 +27,12 @@ class Factura(Base):
     importe: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=True)
     fecha_factura: Mapped[date] = mapped_column(Date, nullable=True)
 
+    # Tipo de documento y método de extracción (poblados por el pipeline)
+    tipo_documento: Mapped[str] = mapped_column(String(40), nullable=True)
+    # factura_a | factura_b | factura_c | nota_credito | transferencia_* | desconocido
+    metodo_extraccion: Mapped[str] = mapped_column(String(30), nullable=True)
+    # pdfplumber | ocr | ocr_photo | pdfplumber+llm | ocr+llm
+
     # Estado del procesamiento
     estado: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pendiente"

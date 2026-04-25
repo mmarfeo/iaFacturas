@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}API Key{% endblock %}
+
+{% block content %}
+<div class="container-xl py-5" style="margin-top: 70px; max-width: 760px;">
+
+  <h2 class="fw-bold mb-1">API Key</h2>
+  <p class="text-muted mb-4">Usá tu API key para enviar documentos desde sistemas externos sin necesidad de iniciar sesión.</p>
+
+  <!-- ── Clave actual ── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h5 class="fw-semibold mb-3">Tu clave de acceso</h5>
+
+      {% if api_key %}
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <code class="flex-grow-1 p-2 rounded bg-body-secondary" id="api-key-value" style="word-break:break-all; font-size:.85rem;">
+          {{ api_key }}
+        </code>
+        <button class="btn btn-outline-secondary btn-sm" onclick="copiarClave()" title="Copiar">
+          <i class="bi bi-clipboard"></i> Copiar
+        </button>
+      </div>
+      <div class="alert alert-warning py-2 mb-3" role="alert" style="font-size:.85rem;">
+        <strong>Guardá esta clave en un lugar seguro.</strong> No la compartas: da acceso a tu cuenta desde cualquier sistema.
+      </div>
+      {% else %}
+      <p class="text-muted mb-3">No tenés una API key activa. Generá una para comenzar a usar la API.</p>
+      {% endif %}
+
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-primary" id="btn-generar" onclick="generarClave()">
+          {% if api_key %}Regenerar clave{% else %}Generar clave{% endif %}
+        </button>
+        {% if api_key %}
+        <button class="btn btn-outline-danger" onclick="revocarClave()">Revocar clave</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Documentación rápida ── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h5 class="fw-semibold mb-3">Cómo usar la API</h5>
+
+      <p class="mb-2"><strong>1. Subir un documento</strong></p>
+      <pre class="bg-body-secondary rounded p-3 mb-3" style="font-size:.8rem; overflow-x:auto;"><code>POST /api/v1/documentos
+X-API-Key: tu_clave_aqui
+Content-Type: multipart/form-data
+
+file=@factura.pdf
+
+# Respuesta:
+{ "ok": true, "job_id": 42 }</code></pre>
+
+      <p class="mb-2"><strong>2. Consultar el resultado</strong></p>
+      <pre class="bg-body-secondary rounded p-3 mb-3" style="font-size:.8rem; overflow-x:auto;"><code>GET /api/v1/documentos/42
+X-API-Key: tu_clave_aqui
+
+# Respuesta cuando estado="completado":
+{
+  "ok": true,
+  "job_id": 42,
+  "estado": "completado",
+  "tipo_documento": "factura_a",
+  "metodo_extraccion": "pdfplumber",
+  "cae_valido": true,
+  "cae_vencimiento": "2026-06-30",
+  "resultado": {
+    "cae": "12345678901234",
+    "cuit_emisor": "30-99999999-9",
+    "importe_total": 15000.00,
+    "fecha_emision": "2026-04-25",
+    ...
+  }
+}</code></pre>
+
+      <p class="mb-2"><strong>3. Ejemplo con curl</strong></p>
+      <pre class="bg-body-secondary rounded p-3 mb-0" style="font-size:.8rem; overflow-x:auto;"><code>curl -X POST https://iafacturas.dewoc.com/api/v1/documentos \
+  -H "X-API-Key: tu_clave_aqui" \
+  -F "file=@factura.pdf"</code></pre>
+    </div>
+  </div>
+
+  <!-- ── Estados posibles ── -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <h5 class="fw-semibold mb-3">Estados del procesamiento</h5>
+      <table class="table table-sm">
+        <thead><tr><th>Estado</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge bg-secondary">pendiente</span></td><td>En cola, esperando procesamiento</td></tr>
+          <tr><td><span class="badge bg-primary">procesando</span></td><td>Extrayendo texto y campos</td></tr>
+          <tr><td><span class="badge bg-success">completado</span></td><td>Listo — el campo <code>resultado</code> tiene los datos</td></tr>
+          <tr><td><span class="badge bg-danger">error</span></td><td>Falló el procesamiento — ver campo <code>error</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+async function generarClave() {
+  const btn = document.getElementById('btn-generar');
+  btn.disabled = true;
+  btn.textContent = 'Generando...';
+  try {
+    const resp = await fetch('/app/perfil/api-key/generar', { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) {
+      window.location.reload();
+    }
+  } catch(e) {
+    alert('Error al generar la clave');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function revocarClave() {
+  if (!confirm('¿Revocar la API key? Los sistemas que la usen dejarán de funcionar.')) return;
+  try {
+    const resp = await fetch('/app/perfil/api-key', { method: 'DELETE' });
+    const data = await resp.json();
+    if (data.ok) window.location.reload();
+  } catch(e) {
+    alert('Error al revocar la clave');
+  }
+}
+
+function copiarClave() {
+  const val = document.getElementById('api-key-value').textContent.trim();
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = event.target.closest('button');
+    btn.textContent = '¡Copiado!';
+    setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i> Copiar'; }, 2000);
+  });
+}
+</script>
+{% endblock %}

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -15,6 +16,9 @@ class Usuario(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+
+    # API key para acceso externo (POST /api/v1/documentos)
+    api_key: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, unique=True, index=True)
 
     plan: Mapped["Plan"] = relationship("Plan", back_populates="usuarios")
     facturas: Mapped[list["Factura"]] = relationship("Factura", back_populates="usuario")

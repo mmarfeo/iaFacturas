@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     mercadopago_access_token: Optional[str] = None
     mercadopago_webhook_secret: Optional[str] = None
 
+    # OCR
+    ocr_dpi: int = 200            # DPI para escaneos
+    ocr_dpi_photo: int = 300      # DPI para fotos de celular
+    ocr_conf_threshold: int = 30  # Confianza mínima Tesseract (0-100)
+
+    # AFIP
+    afip_cache_ttl: int = 3600    # TTL caché Redis respuestas AFIP (segundos)
+
     @property
     def is_dev(self) -> bool:
         return self.app_env == "development"
