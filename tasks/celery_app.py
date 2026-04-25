@@ -14,6 +14,7 @@ celery_app.conf.update(
     accept_content=["json"],
     timezone="America/Argentina/Buenos_Aires",
     enable_utc=True,
+    broker_connection_retry_on_startup=True,
     task_routes={
         "tasks.procesar_factura.*": {"queue": "facturas"},
     },
