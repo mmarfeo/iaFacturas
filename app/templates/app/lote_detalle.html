@@ -73,90 +73,209 @@
     </div>
   </div>
 
-  <!-- Tabla de facturas -->
-  <div class="card border-0 shadow-sm">
-    <div class="card-header bg-transparent border-bottom py-3">
-      <h6 class="fw-bold mb-0">Documentos del lote</h6>
-    </div>
-    <div class="table-responsive">
-      <table class="table table-sm table-hover mb-0 align-middle" style="font-size:13px">
-        <thead style="background:var(--bs-secondary-bg)">
-          <tr>
-            <th class="ps-4 py-3">#</th>
-            <th class="py-3">Archivo</th>
-            <th class="py-3">Tipo</th>
-            <th class="py-3">CUIT Emisor</th>
-            <th class="py-3 text-end">Importe</th>
-            <th class="py-3">CAE</th>
-            <th class="py-3">Método</th>
-            <th class="py-3 text-center">Confianza</th>
-            <th class="py-3">Estado</th>
-            <th class="pe-4 py-3"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for f in facturas %}
-          <tr id="fila-{{ f.id }}">
-            <td class="ps-4 text-muted">{{ loop.index }}</td>
-            <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
-                title="{{ f.datos_extraidos.get('nombre_original') if f.datos_extraidos else '' }}">
-              {{ f.datos_extraidos.get('nombre_original') if f.datos_extraidos and f.datos_extraidos.get('nombre_original') else (f.archivo_path | replace('uploads\\', '') | replace('uploads/', '')) }}
-            </td>
-            <td>
-              {% if f.tipo_documento %}
-                <span class="badge bg-secondary" style="font-size:11px">{{ f.tipo_documento | replace('_', ' ') }}</span>
-              {% else %}—{% endif %}
-            </td>
-            <td style="font-family:monospace">{{ f.cuit_emisor or '—' }}</td>
-            <td class="text-end fw-semibold">
-              {% if f.importe %}${{ "{:,.2f}".format(f.importe) }}{% else %}—{% endif %}
-            </td>
-            <td>
-              {% if f.cae_valido is not none %}
-                {% if f.cae_valido %}
-                  <span class="badge bg-success" style="font-size:11px">VIGENTE</span>
-                {% else %}
-                  <span class="badge bg-danger" style="font-size:11px">VENCIDO</span>
-                {% endif %}
-              {% else %}—{% endif %}
-            </td>
-            <td style="font-size:11px; color:var(--ia-sub)">
-              {{ f.metodo_extraccion or '—' }}
-            </td>
-            <td class="text-center">
-              {% set conf = f.datos_extraidos.get('confidence') if f.datos_extraidos else none %}
-              {% if conf is not none %}
-                {% set pct = conf | int %}
-                <span class="fw-semibold" style="font-size:12px;
-                  color:{% if pct >= 80 %}#22c55e{% elif pct >= 50 %}#f59e0b{% else %}#ef4444{% endif %}">
-                  {{ pct }}%
-                </span>
-              {% else %}—{% endif %}
-            </td>
-            <td class="celda-estado">
-              {% if f.estado == 'completado' %}
-                <span class="badge bg-success" style="font-size:11px">completado</span>
-              {% elif f.estado == 'procesando' %}
-                <span class="badge bg-warning text-dark" style="font-size:11px">procesando</span>
-              {% elif f.estado == 'error' %}
-                <span class="badge bg-danger" style="font-size:11px">error</span>
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-0" id="loteTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active fw-semibold" id="tab-resumen-btn"
+              data-bs-toggle="tab" data-bs-target="#tab-resumen" type="button">
+        Resumen
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link fw-semibold" id="tab-datos-btn"
+              data-bs-toggle="tab" data-bs-target="#tab-datos" type="button">
+        Datos extraídos
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+
+    <!-- ── Tab Resumen ── -->
+    <div class="tab-pane fade show active" id="tab-resumen" role="tabpanel">
+      <div class="card border-0 shadow-sm border-top-0" style="border-radius:0 0 12px 12px">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0 align-middle" style="font-size:13px">
+            <thead style="background:var(--bs-secondary-bg)">
+              <tr>
+                <th class="ps-4 py-3">#</th>
+                <th class="py-3">Archivo</th>
+                <th class="py-3">Tipo</th>
+                <th class="py-3">CUIT Emisor</th>
+                <th class="py-3 text-end">Importe</th>
+                <th class="py-3">CAE</th>
+                <th class="py-3">Método</th>
+                <th class="py-3 text-center">Confianza</th>
+                <th class="py-3">Estado</th>
+                <th class="pe-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in facturas %}
+              <tr id="fila-{{ f.id }}">
+                <td class="ps-4 text-muted">{{ loop.index }}</td>
+                <td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
+                    title="{{ f.datos_extraidos.get('nombre_original') if f.datos_extraidos else '' }}">
+                  {{ f.datos_extraidos.get('nombre_original') if f.datos_extraidos and f.datos_extraidos.get('nombre_original') else (f.archivo_path | replace('uploads\\', '') | replace('uploads/', '')) }}
+                </td>
+                <td>
+                  {% set tipo = f.tipo_documento or (f.datos_extraidos.get('tipo_comprobante') if f.datos_extraidos else none) %}
+                  {% if tipo %}
+                    <span class="badge bg-secondary" style="font-size:11px">{{ tipo | replace('_', ' ') }}</span>
+                  {% else %}—{% endif %}
+                </td>
+                <td style="font-family:monospace; font-size:12px">
+                  {{ f.cuit_emisor or (f.datos_extraidos.get('cuit_emisor') if f.datos_extraidos else '—') or '—' }}
+                </td>
+                <td class="text-end fw-semibold">
+                  {% set imp = f.importe or (f.datos_extraidos.get('importe_total') or f.datos_extraidos.get('importe') if f.datos_extraidos else none) %}
+                  {% if imp %}${{ "{:,.2f}".format(imp | float) }}{% else %}—{% endif %}
+                </td>
+                <td>
+                  {% if f.cae_valido is not none %}
+                    {% if f.cae_valido %}
+                      <span class="badge bg-success" style="font-size:11px">VIGENTE</span>
+                    {% else %}
+                      <span class="badge bg-danger" style="font-size:11px">VENCIDO</span>
+                    {% endif %}
+                  {% else %}—{% endif %}
+                </td>
+                <td style="font-size:11px; color:var(--ia-sub)">
+                  {{ f.metodo_extraccion or '—' }}
+                </td>
+                <td class="text-center">
+                  {% set conf = f.datos_extraidos.get('confidence') if f.datos_extraidos else none %}
+                  {% if conf is not none %}
+                    {% set cpct = conf | int %}
+                    <span class="fw-semibold" style="font-size:12px;
+                      color:{% if cpct >= 80 %}#22c55e{% elif cpct >= 50 %}#f59e0b{% else %}#ef4444{% endif %}">
+                      {{ cpct }}%
+                    </span>
+                  {% else %}—{% endif %}
+                </td>
+                <td class="celda-estado">
+                  {% if f.estado == 'completado' %}
+                    <span class="badge bg-success" style="font-size:11px">completado</span>
+                  {% elif f.estado == 'procesando' %}
+                    <span class="badge bg-warning text-dark" style="font-size:11px">procesando</span>
+                  {% elif f.estado == 'error' %}
+                    <span class="badge bg-danger" style="font-size:11px">error</span>
+                  {% else %}
+                    <span class="badge bg-secondary" style="font-size:11px">{{ f.estado }}</span>
+                  {% endif %}
+                </td>
+                <td class="pe-4 celda-accion">
+                  {% if f.estado == 'completado' %}
+                  <a href="/app/facturas/{{ f.id }}" class="btn btn-sm btn-outline-secondary">Ver</a>
+                  {% endif %}
+                </td>
+              </tr>
               {% else %}
-                <span class="badge bg-secondary" style="font-size:11px">{{ f.estado }}</span>
-              {% endif %}
-            </td>
-            <td class="pe-4 celda-accion">
-              {% if f.estado == 'completado' %}
-              <a href="/app/facturas/{{ f.id }}" class="btn btn-sm btn-outline-secondary">Ver</a>
-              {% endif %}
-            </td>
-          </tr>
-          {% else %}
-          <tr><td colspan="10" class="text-center text-muted py-4">No hay documentos en este lote.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+              <tr><td colspan="10" class="text-center text-muted py-4">No hay documentos en este lote.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
-  </div>
+
+    <!-- ── Tab Datos extraídos ── -->
+    <div class="tab-pane fade" id="tab-datos" role="tabpanel">
+      <div class="card border-0 shadow-sm border-top-0" style="border-radius:0 0 12px 12px">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0 align-middle" style="font-size:12px; min-width:1400px">
+            <thead style="background:var(--bs-secondary-bg)">
+              <tr>
+                <th class="ps-3 py-3" style="min-width:30px">#</th>
+                <th class="py-3" style="min-width:180px">Archivo</th>
+                <th class="py-3" style="min-width:100px">Tipo</th>
+                <th class="py-3" style="min-width:200px">Razón Social Emisor</th>
+                <th class="py-3" style="min-width:130px">CUIT Emisor</th>
+                <th class="py-3" style="min-width:200px">Razón Social Receptor</th>
+                <th class="py-3" style="min-width:130px">CUIT Receptor</th>
+                <th class="py-3 text-center" style="min-width:80px">Pto.Venta</th>
+                <th class="py-3 text-center" style="min-width:90px">Número</th>
+                <th class="py-3" style="min-width:90px">Fecha</th>
+                <th class="py-3" style="min-width:80px">Concepto</th>
+                <th class="py-3 text-end" style="min-width:110px">Neto</th>
+                <th class="py-3 text-end" style="min-width:100px">IVA</th>
+                <th class="py-3 text-end" style="min-width:110px">Total</th>
+                <th class="py-3" style="min-width:150px">CAE</th>
+                <th class="py-3" style="min-width:90px">Venc.CAE</th>
+                <th class="py-3 text-center" style="min-width:80px">Confianza</th>
+                <th class="py-3" style="min-width:80px">Método</th>
+                <th class="pe-3 py-3" style="min-width:90px">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in facturas %}
+              {% set d = f.datos_extraidos or {} %}
+              <tr>
+                <td class="ps-3 text-muted">{{ loop.index }}</td>
+                <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
+                    title="{{ d.get('nombre_original', '') }}">
+                  {{ d.get('nombre_original') or (f.archivo_path | replace('uploads\\', '') | replace('uploads/', '')) }}
+                </td>
+                <td>
+                  {% set tipo = f.tipo_documento or d.get('tipo_comprobante', '') %}
+                  {% if tipo %}<span class="badge bg-secondary" style="font-size:10px">{{ tipo | replace('_',' ') }}</span>{% else %}—{% endif %}
+                </td>
+                <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
+                    title="{{ d.get('razon_social_emisor', '') }}">
+                  {{ d.get('razon_social_emisor') or '—' }}
+                </td>
+                <td style="font-family:monospace">{{ f.cuit_emisor or d.get('cuit_emisor') or '—' }}</td>
+                <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
+                    title="{{ d.get('razon_social_receptor', '') }}">
+                  {{ d.get('razon_social_receptor') or '—' }}
+                </td>
+                <td style="font-family:monospace">{{ f.cuit_receptor or d.get('cuit_receptor') or '—' }}</td>
+                <td class="text-center">{{ d.get('punto_venta') or '—' }}</td>
+                <td class="text-center">{{ d.get('numero') or '—' }}</td>
+                <td>{{ d.get('fecha_emision') or (f.fecha_factura.strftime('%d/%m/%Y') if f.fecha_factura else '—') }}</td>
+                <td>{{ d.get('concepto') or '—' }}</td>
+                <td class="text-end">
+                  {% set neto = d.get('importe_neto') %}
+                  {% if neto %}${{ "{:,.2f}".format(neto | float) }}{% else %}—{% endif %}
+                </td>
+                <td class="text-end">
+                  {% set iva = d.get('importe_iva') %}
+                  {% if iva %}${{ "{:,.2f}".format(iva | float) }}{% else %}—{% endif %}
+                </td>
+                <td class="text-end fw-semibold">
+                  {% set tot = f.importe or d.get('importe_total') or d.get('importe') %}
+                  {% if tot %}${{ "{:,.2f}".format(tot | float) }}{% else %}—{% endif %}
+                </td>
+                <td style="font-family:monospace; font-size:11px">{{ f.cae or d.get('cae') or '—' }}</td>
+                <td>{{ d.get('cae_vencimiento') or (f.cae_vencimiento.strftime('%d/%m/%Y') if f.cae_vencimiento else '—') }}</td>
+                <td class="text-center">
+                  {% set conf = d.get('confidence') %}
+                  {% if conf is not none %}
+                    {% set cpct = conf | int %}
+                    <span style="font-weight:600; color:{% if cpct >= 80 %}#22c55e{% elif cpct >= 50 %}#f59e0b{% else %}#ef4444{% endif %}">{{ cpct }}%</span>
+                  {% else %}—{% endif %}
+                </td>
+                <td style="color:var(--ia-sub)">{{ f.metodo_extraccion or '—' }}</td>
+                <td class="pe-3">
+                  {% if f.estado == 'completado' %}
+                    <span class="badge bg-success" style="font-size:10px">ok</span>
+                  {% elif f.estado == 'error' %}
+                    <span class="badge bg-danger" style="font-size:10px" title="{{ d.get('error','') }}">error</span>
+                  {% else %}
+                    <span class="badge bg-secondary" style="font-size:10px">{{ f.estado }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="19" class="text-center text-muted py-4">No hay documentos en este lote.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tab-content -->
 
 </div>
 
