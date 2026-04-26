@@ -2,6 +2,7 @@
 import asyncio
 from sqlalchemy import select, text
 from app.core.database import AsyncSessionLocal
+from app.models.lote import Lote  # noqa: F401 — necesario para resolver relaciones SQLAlchemy
 from app.models.plan import Plan
 from app.models.usuario import Usuario
 import bcrypt as _bcrypt
