@@ -112,10 +112,7 @@ def procesar_factura(self, factura_id: int, archivo_path: str):
 
         # ── Step 5: Guardar en DB ─────────────────────────────────────────────
         _set_step(r, factura_id, 5)
-        lote_id = asyncio.run(_guardar(factura_id, campos, tipo_doc, metodo_final))
-        if lote_id:
-            asyncio.run(_actualizar_lote(lote_id))
-
+        asyncio.run(_guardar_y_actualizar_lote(factura_id, campos, tipo_doc, metodo_final))
         _set_step(r, factura_id, 5, "done")
         return {
             "factura_id": factura_id,
@@ -128,11 +125,8 @@ def procesar_factura(self, factura_id: int, archivo_path: str):
 
     except Exception as exc:
         _set_step(r, factura_id, 0, "error", str(exc))
-        # Intentar actualizar stats del lote aunque haya error
         try:
-            lote_id = asyncio.run(_get_lote_id(factura_id))
-            if lote_id:
-                asyncio.run(_actualizar_lote(lote_id))
+            asyncio.run(_guardar_error_y_lote(factura_id, str(exc)))
         except Exception:
             pass
         raise self.retry(exc=exc, countdown=30)
@@ -150,14 +144,17 @@ def _campos_clave_para_tipo(tipo: str) -> list[str]:
             "razon_social_receptor", "condicion_venta", "concepto"]
 
 
-async def _get_lote_id(factura_id: int):
-    from app.core.database import AsyncSessionLocal
-    from app.models.factura import Factura
-    from sqlalchemy import select
-    async with AsyncSessionLocal() as db:
-        res = await db.execute(select(Factura.lote_id).where(Factura.id == factura_id))
-        row = res.scalar_one_or_none()
-        return row
+async def _guardar_y_actualizar_lote(factura_id: int, campos: dict, tipo_doc: str, metodo: str):
+    """Guarda resultado y actualiza stats del lote en una sola sesión."""
+    lote_id = await _guardar(factura_id, campos, tipo_doc, metodo)
+    if lote_id:
+        await _actualizar_lote(lote_id)
+
+
+async def _guardar_error_y_lote(factura_id: int, mensaje: str):
+    """Guarda error y actualiza stats del lote en una sola sesión."""
+    await _guardar_error(factura_id, mensaje)
+    # _guardar_error ya llama _actualizar_lote internamente
 
 
 async def _actualizar_lote(lote_id: int):
