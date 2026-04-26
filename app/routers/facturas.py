@@ -200,7 +200,7 @@ async def upload_factura(
     # Verificar límite de plan
     plan_res = await db.execute(select(Plan).where(Plan.id == user.plan_id))
     plan = plan_res.scalar_one_or_none()
-    if plan and plan.limite_mensual:
+    if plan and plan.limite_mensual and plan.limite_mensual > 0:
         from datetime import date
         hoy = date.today()
         uso_res = await db.execute(

@@ -82,7 +82,7 @@ async def _check_plan_limit(user: Usuario, db: AsyncSession) -> tuple[bool, str]
     from datetime import date
     plan_res = await db.execute(select(Plan).where(Plan.id == user.plan_id))
     plan = plan_res.scalar_one_or_none()
-    if not plan or not plan.limite_mensual:
+    if not plan or plan.limite_mensual <= 0:
         return True, ""
     hoy = date.today()
     uso_res = await db.execute(
