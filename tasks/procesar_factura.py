@@ -10,6 +10,8 @@ Pipeline completo:
   Step 5 — Guardar en DB          → datos_extraidos (JSONB) + campos indexados
 """
 import asyncio
+import os
+from contextlib import asynccontextmanager
 from decimal import Decimal
 from pathlib import Path
 
@@ -19,6 +21,25 @@ from tasks.celery_app import celery_app
 from app.services.llm_extractor import LLM_THRESHOLD
 
 _REDIS_TTL = 3600  # 1 hora
+
+
+@asynccontextmanager
+async def _get_session():
+    """Sesión DB con NullPool — evita herencia de conexiones en fork de Celery."""
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from sqlalchemy.pool import NullPool
+
+    url = os.environ.get("DATABASE_URL", "")
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    engine = create_async_engine(url, poolclass=NullPool)
+    try:
+        Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with Session() as session:
+            yield session
+    finally:
+        await engine.dispose()
 
 
 def _r():
@@ -167,12 +188,11 @@ async def _guardar_error_y_lote(factura_id: int, mensaje: str):
 async def _actualizar_lote(lote_id: int):
     """Recalcula y persiste los stats del lote."""
     _import_models()
-    from app.core.database import AsyncSessionLocal
     from app.models.factura import Factura
     from app.models.lote import Lote
     from sqlalchemy import select, func
 
-    async with AsyncSessionLocal() as db:
+    async with _get_session() as db:
         stats = (await db.execute(
             select(
                 func.count(Factura.id).label("total"),
@@ -203,16 +223,18 @@ async def _actualizar_lote(lote_id: int):
 async def _guardar(factura_id: int, campos: dict, tipo_doc: str, metodo: str):
     """Persiste el resultado en PostgreSQL. Retorna lote_id si tiene."""
     _import_models()
-    from app.core.database import AsyncSessionLocal
     from app.models.factura import Factura
     from sqlalchemy import select
     from datetime import date
 
-    async with AsyncSessionLocal() as db:
+    async with _get_session() as db:
         res = await db.execute(select(Factura).where(Factura.id == factura_id))
         factura = res.scalar_one_or_none()
         if not factura:
             return None
+
+        # Preservar metadatos guardados al crear (ej: nombre_original)
+        previo = factura.datos_extraidos or {}
 
         # Serializar todo a tipos JSON-compatibles para JSONB
         factura.datos_extraidos = {
@@ -220,6 +242,10 @@ async def _guardar(factura_id: int, campos: dict, tipo_doc: str, metodo: str):
             for k, v in campos.items()
             if not k.startswith("_") and v is not None
         }
+        # Restaurar campos previos que no vienen de la extracción
+        for key in ("nombre_original",):
+            if key in previo and key not in factura.datos_extraidos:
+                factura.datos_extraidos[key] = previo[key]
         # Guardar confianza de extracción (para reportes)
         if "_confidence" in campos:
             factura.datos_extraidos["confidence"] = round(float(campos["_confidence"]) * 100, 1)
@@ -255,11 +281,10 @@ async def _guardar(factura_id: int, campos: dict, tipo_doc: str, metodo: str):
 async def _guardar_error(factura_id: int, mensaje: str):
     """Marca la factura como error en DB."""
     _import_models()
-    from app.core.database import AsyncSessionLocal
     from app.models.factura import Factura
     from sqlalchemy import select
 
-    async with AsyncSessionLocal() as db:
+    async with _get_session() as db:
         res = await db.execute(select(Factura).where(Factura.id == factura_id))
         factura = res.scalar_one_or_none()
         if not factura:

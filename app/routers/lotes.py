@@ -112,6 +112,7 @@ async def crear_lote(
             lote_id=lote.id,
             archivo_path=str(filepath),
             estado="pendiente",
+            datos_extraidos={"nombre_original": file.filename},
         )
         db.add(factura)
         await db.flush()
@@ -210,11 +211,18 @@ async def lote_estado(
         lote.estado     = nuevo_estado
         await db.commit()
 
+    # Estado por factura para actualizar filas en la UI
+    res_f = await db.execute(
+        select(Factura.id, Factura.estado).where(Factura.lote_id == lote_id)
+    )
+    filas = [{"id": row.id, "estado": row.estado} for row in res_f.all()]
+
     return JSONResponse({
         "estado":     nuevo_estado,
         "total":      total,
         "procesados": procesados,
         "errores":    errores,
+        "facturas":   filas,
     })
 
 

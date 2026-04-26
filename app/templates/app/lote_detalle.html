@@ -23,6 +23,18 @@
     </div>
   </div>
 
+  <!-- Barra de progreso -->
+  {% set pct = ((lote.procesados + lote.errores) / lote.total * 100) | int if lote.total > 0 else 0 %}
+  <div class="mb-4">
+    <div class="d-flex justify-content-between mb-1" style="font-size:12px; color:var(--ia-sub)">
+      <span id="prog-label">{{ lote.procesados + lote.errores }} / {{ lote.total }} documentos procesados</span>
+      <span id="prog-pct">{{ pct }}%</span>
+    </div>
+    <div class="progress" style="height:8px; border-radius:8px">
+      <div id="prog-bar" class="progress-bar bg-success" style="width:{{ pct }}%; border-radius:8px; transition:width .4s"></div>
+    </div>
+  </div>
+
   <!-- Stats -->
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
@@ -84,10 +96,11 @@
         </thead>
         <tbody>
           {% for f in facturas %}
-          <tr>
+          <tr id="fila-{{ f.id }}">
             <td class="ps-4 text-muted">{{ loop.index }}</td>
-            <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
-              {{ f.archivo_path | replace('uploads\\', '') | replace('uploads/', '') }}
+            <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
+                title="{{ f.datos_extraidos.get('nombre_original') if f.datos_extraidos else '' }}">
+              {{ f.datos_extraidos.get('nombre_original') if f.datos_extraidos and f.datos_extraidos.get('nombre_original') else (f.archivo_path | replace('uploads\\', '') | replace('uploads/', '')) }}
             </td>
             <td>
               {% if f.tipo_documento %}
@@ -120,7 +133,7 @@
                 </span>
               {% else %}—{% endif %}
             </td>
-            <td>
+            <td class="celda-estado">
               {% if f.estado == 'completado' %}
                 <span class="badge bg-success" style="font-size:11px">completado</span>
               {% elif f.estado == 'procesando' %}
@@ -131,7 +144,7 @@
                 <span class="badge bg-secondary" style="font-size:11px">{{ f.estado }}</span>
               {% endif %}
             </td>
-            <td class="pe-4">
+            <td class="pe-4 celda-accion">
               {% if f.estado == 'completado' %}
               <a href="/app/facturas/{{ f.id }}" class="btn btn-sm btn-outline-secondary">Ver</a>
               {% endif %}
@@ -150,19 +163,53 @@
 <script>
 var LOTE_ID = {{ lote.id }};
 
+var badgeEstado = {
+  completado:  '<span class="badge bg-success" style="font-size:11px">completado</span>',
+  procesando:  '<span class="badge bg-warning text-dark" style="font-size:11px">procesando</span>',
+  pendiente:   '<span class="badge bg-secondary" style="font-size:11px">pendiente</span>',
+  error:       '<span class="badge bg-danger" style="font-size:11px">error</span>',
+};
+
+var badgeLote = {
+  completado:  '<span class="badge bg-success fs-6">completado</span>',
+  procesando:  '<span class="badge bg-warning text-dark fs-6">procesando</span>',
+  con_errores: '<span class="badge bg-danger fs-6">con errores</span>',
+  pendiente:   '<span class="badge bg-secondary fs-6">pendiente</span>',
+};
+
 async function verificar() {
   var r = await fetch('/app/lotes/' + LOTE_ID + '/estado');
+  if (!r.ok) return;
   var d = await r.json();
-  document.getElementById('stat-total').textContent  = d.total;
-  document.getElementById('stat-proc').textContent   = d.procesados;
-  document.getElementById('stat-err').textContent    = d.errores;
-  var badgeMap = {
-    completado:  '<span class="badge bg-success fs-6">completado</span>',
-    procesando:  '<span class="badge bg-warning text-dark fs-6">procesando</span>',
-    con_errores: '<span class="badge bg-danger fs-6">con errores</span>',
-    pendiente:   '<span class="badge bg-secondary fs-6">pendiente</span>',
-  };
-  document.getElementById('stat-estado').innerHTML = badgeMap[d.estado] || d.estado;
+
+  // Stats
+  document.getElementById('stat-total').textContent = d.total;
+  document.getElementById('stat-proc').textContent  = d.procesados;
+  document.getElementById('stat-err').textContent   = d.errores;
+  document.getElementById('stat-estado').innerHTML  = badgeLote[d.estado] || d.estado;
+
+  // Barra de progreso
+  var terminados = d.procesados + d.errores;
+  var pct = d.total > 0 ? Math.round(terminados / d.total * 100) : 0;
+  document.getElementById('prog-bar').style.width = pct + '%';
+  document.getElementById('prog-pct').textContent = pct + '%';
+  document.getElementById('prog-label').textContent = terminados + ' / ' + d.total + ' documentos procesados';
+
+  // Actualizar estado de cada fila
+  if (d.facturas) {
+    d.facturas.forEach(function(f) {
+      var fila = document.getElementById('fila-' + f.id);
+      if (!fila) return;
+      var celdaEstado = fila.querySelector('td.celda-estado');
+      if (celdaEstado) celdaEstado.innerHTML = badgeEstado[f.estado] || f.estado;
+      // Mostrar botón Ver si completado
+      var celdaAccion = fila.querySelector('td.celda-accion');
+      if (celdaAccion && f.estado === 'completado' && !celdaAccion.querySelector('a')) {
+        celdaAccion.innerHTML = '<a href="/app/facturas/' + f.id + '" class="btn btn-sm btn-outline-secondary">Ver</a>';
+      }
+    });
+  }
+
   if (d.estado !== 'procesando') clearInterval(polling);
 }
 
@@ -172,9 +219,9 @@ async function reprocesar() {
   if (d.ok) { alert('Encoladas ' + d.encoladas + ' facturas.'); location.reload(); }
 }
 
-// Auto-polling si está procesando
+var polling = null;
 {% if lote.estado == 'procesando' %}
-var polling = setInterval(verificar, 5000);
+polling = setInterval(verificar, 3000);
 {% endif %}
 </script>
 {% endblock %}
