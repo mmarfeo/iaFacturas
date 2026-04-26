@@ -29,7 +29,7 @@
               <div class="ia-stat-label">Facturas este mes</div>
               <div class="ia-stat-value text-accent">{{ stats.total or 0 }}</div>
               <div style="font-size:11px; color:var(--ia-sub); margin-top:2px">
-                de {{ user.limite_mensual if user and user.plan_nombre != 'Pro' else '∞' }}
+                de {{ '∞' if user and user.plan and user.plan.limite_mensual == -1 else (user.plan.limite_mensual if user and user.plan else 10) }}
               </div>
             </div>
             <span style="font-size:22px">📋</span>
@@ -66,7 +66,7 @@
             <div>
               <div class="ia-stat-label">Plan actual</div>
               <div class="ia-stat-value" style="color:#8b5cf6">
-                {{ user.plan_nombre if user else 'Free' }}
+                {{ user.plan.nombre if user and user.plan else 'Free' }}
               </div>
               <div style="font-size:11px; color:var(--ia-sub); margin-top:2px">activo</div>
             </div>
@@ -136,9 +136,9 @@
             </div>
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="fw-bold" style="font-size:17px; color:var(--bs-body-color)">
-                Plan {{ user.plan_nombre if user else 'Free' }}
+                Plan {{ user.plan.nombre if user and user.plan else 'Free' }}
               </span>
-              {% if not user or user.plan_nombre != 'Pro' %}
+              {% if not user or not user.plan or user.plan.nombre == 'Free' %}
                 <span class="badge rounded-pill" style="background:rgba(37,99,235,0.12); color:var(--ia-accent); font-size:11px">
                   FREE
                 </span>
@@ -146,12 +146,13 @@
             </div>
 
             {% set usadas = stats.total or 0 %}
-            {% set limite = 10 %}
-            {% set pct = [((usadas / limite) * 100), 100] | min if user and user.plan_nombre != 'Pro' else 15 %}
+            {% set plan_limite = user.plan.limite_mensual if user and user.plan else 10 %}
+            {% set es_ilimitado = plan_limite == -1 %}
+            {% set pct = [((usadas / plan_limite) * 100), 100] | min if not es_ilimitado and plan_limite > 0 else 15 %}
 
             <div class="d-flex justify-content-between mb-1" style="font-size:12px">
               <span style="color:var(--ia-sub)">Facturas usadas</span>
-              <span class="fw-bold" style="color:var(--bs-body-color)">{{ usadas }} / {{ '∞' if user and user.plan_nombre == 'Pro' else limite }}</span>
+              <span class="fw-bold" style="color:var(--bs-body-color)">{{ usadas }} / {{ '∞' if es_ilimitado else plan_limite }}</span>
             </div>
             <div class="ia-progress mb-3">
               <div class="ia-progress-bar"
@@ -159,7 +160,7 @@
               </div>
             </div>
 
-            {% if not user or user.plan_nombre != 'Pro' %}
+            {% if not user or not user.plan or user.plan.nombre == 'Free' %}
               <a href="/planes" class="btn w-100 fw-bold text-white"
                  style="border-radius:9px; background:linear-gradient(135deg,#1d4ed8,#7c3aed); font-size:13px; padding:10px">
                 Mejorar a Pro ⚡
