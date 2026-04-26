@@ -76,6 +76,8 @@
             <th class="py-3">CUIT Emisor</th>
             <th class="py-3 text-end">Importe</th>
             <th class="py-3">CAE</th>
+            <th class="py-3">Método</th>
+            <th class="py-3 text-center">Confianza</th>
             <th class="py-3">Estado</th>
             <th class="pe-4 py-3"></th>
           </tr>
@@ -105,6 +107,19 @@
                 {% endif %}
               {% else %}—{% endif %}
             </td>
+            <td style="font-size:11px; color:var(--ia-sub)">
+              {{ f.metodo_extraccion or '—' }}
+            </td>
+            <td class="text-center">
+              {% set conf = f.datos_extraidos.get('confidence') if f.datos_extraidos else none %}
+              {% if conf is not none %}
+                {% set pct = conf | int %}
+                <span class="fw-semibold" style="font-size:12px;
+                  color:{% if pct >= 80 %}#22c55e{% elif pct >= 50 %}#f59e0b{% else %}#ef4444{% endif %}">
+                  {{ pct }}%
+                </span>
+              {% else %}—{% endif %}
+            </td>
             <td>
               {% if f.estado == 'completado' %}
                 <span class="badge bg-success" style="font-size:11px">completado</span>
@@ -123,7 +138,7 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="8" class="text-center text-muted py-4">No hay documentos en este lote.</td></tr>
+          <tr><td colspan="10" class="text-center text-muted py-4">No hay documentos en este lote.</td></tr>
           {% endfor %}
         </tbody>
       </table>

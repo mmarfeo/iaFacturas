@@ -41,7 +41,16 @@ async def main():
             await db.commit()
             print("OK Usuario admin creado: admin@iafacturas.com / Admin1234!")
         else:
-            print("OK Admin ya existe:", admin.email)
+            # Asegurar que el admin tenga plan Pro
+            pro = (await db.execute(
+                select(Plan).where(Plan.nombre == "Pro")
+            )).scalar_one_or_none()
+            if pro and admin.plan_id != pro.id:
+                admin.plan_id = pro.id
+                await db.commit()
+                print(f"OK Admin actualizado a plan Pro (id={pro.id})")
+            else:
+                print("OK Admin ya existe:", admin.email, "| plan_id:", admin.plan_id)
 
 
 asyncio.run(main())

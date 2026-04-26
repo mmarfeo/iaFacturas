@@ -43,7 +43,9 @@
         <input type="file" id="input-files" name="files" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp"
                style="display:none" onchange="mostrarArchivos(this.files)">
 
-        <div id="lista-archivos" class="mt-3"></div>
+        <div id="lista-archivos" class="mt-3">
+          <!-- resumen compacto generado por JS -->
+        </div>
       </div>
     </div>
 
@@ -89,12 +91,42 @@ zona.addEventListener('drop', function(e) {
 function mostrarArchivos(files) {
   var lista = document.getElementById('lista-archivos');
   if (!files.length) { lista.innerHTML = ''; return; }
-  var html = '<p class="fw-semibold mb-2" style="font-size:13px">' + files.length + ' archivos seleccionados:</p><ul class="list-unstyled mb-0" style="font-size:12px; color:var(--ia-sub)">';
-  Array.from(files).forEach(function(f) {
-    html += '<li>📄 ' + f.name + ' <span class="text-muted">(' + (f.size/1024).toFixed(1) + ' KB)</span></li>';
-  });
-  html += '</ul>';
-  lista.innerHTML = html;
+
+  var arr   = Array.from(files);
+  var total = arr.length;
+  var kb    = arr.reduce(function(s, f) { return s + f.size; }, 0) / 1024;
+  var sizeStr = kb >= 1024 ? (kb/1024).toFixed(1) + ' MB' : kb.toFixed(0) + ' KB';
+  var PREVIEW = 5;
+
+  var preview = arr.slice(0, PREVIEW).map(function(f) {
+    return '<li class="text-muted py-1" style="font-size:12px; border-bottom:1px solid var(--bs-border-color)">📄 '
+      + f.name + ' <span style="opacity:.6">(' + (f.size/1024).toFixed(1) + ' KB)</span></li>';
+  }).join('');
+
+  var resto = total > PREVIEW
+    ? '<li class="text-muted py-1" style="font-size:12px">… y <strong>' + (total - PREVIEW) + '</strong> archivos más</li>'
+    : '';
+
+  lista.innerHTML =
+    '<div class="d-flex align-items-center gap-2 mb-2">'
+    + '<span class="badge bg-primary" style="font-size:13px">' + total + ' archivos</span>'
+    + '<span class="text-muted" style="font-size:12px">— ' + sizeStr + ' en total</span>'
+    + '<button type="button" class="btn btn-link btn-sm p-0 ms-auto" style="font-size:12px" onclick="toggleLista()">'
+    + 'Ver lista ▾</button>'
+    + '</div>'
+    + '<ul id="ul-archivos" class="list-unstyled mb-0" style="display:none; max-height:200px; overflow-y:auto; '
+    + 'background:var(--bs-secondary-bg); border-radius:8px; padding:4px 12px">'
+    + preview + resto
+    + '</ul>';
+}
+
+function toggleLista() {
+  var ul  = document.getElementById('ul-archivos');
+  var btn = ul ? ul.previousElementSibling.querySelector('button') : null;
+  if (!ul) return;
+  var visible = ul.style.display !== 'none';
+  ul.style.display  = visible ? 'none' : '';
+  if (btn) btn.textContent = visible ? 'Ver lista ▾' : 'Ocultar ▴';
 }
 
 function subirLote(e) {

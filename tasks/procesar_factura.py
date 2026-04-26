@@ -214,6 +214,9 @@ async def _guardar(factura_id: int, campos: dict, tipo_doc: str, metodo: str):
             for k, v in campos.items()
             if not k.startswith("_") and v is not None
         }
+        # Guardar confianza de extracción (para reportes)
+        if "_confidence" in campos:
+            factura.datos_extraidos["confidence"] = round(float(campos["_confidence"]) * 100, 1)
 
         # Campos indexados para búsquedas rápidas
         factura.cae             = campos.get("cae")
