@@ -144,6 +144,13 @@ def _campos_clave_para_tipo(tipo: str) -> list[str]:
             "razon_social_receptor", "condicion_venta", "concepto"]
 
 
+def _import_models():
+    """Importa todos los modelos antes de usar SQLAlchemy para evitar errores de relaciones."""
+    from app.models import lote  # noqa: F401
+    from app.models import factura  # noqa: F401
+    from app.models import usuario  # noqa: F401
+
+
 async def _guardar_y_actualizar_lote(factura_id: int, campos: dict, tipo_doc: str, metodo: str):
     """Guarda resultado y actualiza stats del lote en una sola sesión."""
     lote_id = await _guardar(factura_id, campos, tipo_doc, metodo)
@@ -159,6 +166,7 @@ async def _guardar_error_y_lote(factura_id: int, mensaje: str):
 
 async def _actualizar_lote(lote_id: int):
     """Recalcula y persiste los stats del lote."""
+    _import_models()
     from app.core.database import AsyncSessionLocal
     from app.models.factura import Factura
     from app.models.lote import Lote
@@ -194,6 +202,7 @@ async def _actualizar_lote(lote_id: int):
 
 async def _guardar(factura_id: int, campos: dict, tipo_doc: str, metodo: str):
     """Persiste el resultado en PostgreSQL. Retorna lote_id si tiene."""
+    _import_models()
     from app.core.database import AsyncSessionLocal
     from app.models.factura import Factura
     from sqlalchemy import select
@@ -245,6 +254,7 @@ async def _guardar(factura_id: int, campos: dict, tipo_doc: str, metodo: str):
 
 async def _guardar_error(factura_id: int, mensaje: str):
     """Marca la factura como error en DB."""
+    _import_models()
     from app.core.database import AsyncSessionLocal
     from app.models.factura import Factura
     from sqlalchemy import select
