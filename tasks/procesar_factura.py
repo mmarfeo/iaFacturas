@@ -65,7 +65,7 @@ def _serializable(v):
 
 
 @celery_app.task(bind=True, name="tasks.procesar_factura.procesar", max_retries=2)
-def procesar_factura(self, factura_id: int, archivo_path: str):
+def procesar_factura(self, factura_id: int, archivo_path: str, force_llm: bool = False):
     r = _r()
     try:
         # ── Step 0: OCR / pdfplumber ─────────────────────────────────────────
@@ -92,7 +92,7 @@ def procesar_factura(self, factura_id: int, archivo_path: str):
         # ── Step 3: LLM fallback si confidence baja ──────────────────────────
         _set_step(r, factura_id, 3)
         metodo_final = metodo_ocr
-        if confidence < LLM_THRESHOLD:
+        if confidence < LLM_THRESHOLD or force_llm:
             try:
                 from app.services.llm_extractor import extraer_con_llm_sync
 

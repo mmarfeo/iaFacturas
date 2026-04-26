@@ -165,9 +165,16 @@
                   {% endif %}
                 </td>
                 <td class="pe-4 celda-accion">
-                  {% if f.estado == 'completado' %}
-                  <a href="/app/facturas/{{ f.id }}" class="btn btn-sm btn-outline-secondary">Ver</a>
-                  {% endif %}
+                  <div class="d-flex gap-1">
+                    {% if f.estado == 'completado' %}
+                    <a href="/app/facturas/{{ f.id }}" class="btn btn-sm btn-outline-secondary">Ver</a>
+                    {% endif %}
+                    {% if f.estado in ['completado', 'error'] %}
+                    <button class="btn btn-sm btn-outline-primary"
+                            title="Reprocesar con IA (Ollama)"
+                            onclick="reprocesarConIA({{ f.id }}, this)">IA</button>
+                    {% endif %}
+                  </div>
                 </td>
               </tr>
               {% else %}
@@ -336,6 +343,28 @@ async function reprocesar() {
   var r = await fetch('/app/lotes/' + LOTE_ID + '/reprocesar', { method: 'POST' });
   var d = await r.json();
   if (d.ok) { alert('Encoladas ' + d.encoladas + ' facturas.'); location.reload(); }
+}
+
+async function reprocesarConIA(facturaId, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  var r = await fetch('/app/facturas/' + facturaId + '/reprocesar', { method: 'POST' });
+  var d = await r.json();
+  if (d.ok) {
+    btn.textContent = 'OK';
+    // Actualizar badge de estado de la fila
+    var fila = document.getElementById('fila-' + facturaId);
+    if (fila) {
+      var celdaEstado = fila.querySelector('td.celda-estado');
+      if (celdaEstado) celdaEstado.innerHTML = badgeEstado['pendiente'];
+    }
+    // Activar polling si no está corriendo
+    if (!polling) polling = setInterval(verificar, 3000);
+  } else {
+    btn.textContent = 'IA';
+    btn.disabled = false;
+    alert('Error al reprocesar: ' + (d.error || 'desconocido'));
+  }
 }
 
 var polling = null;

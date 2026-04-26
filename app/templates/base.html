@@ -64,6 +64,12 @@
             <a class="nav-link ia-nav-link {% if current_page == 'planes' %}active{% endif %}"
                href="/planes">💳 Planes</a>
           </li>
+          <li class="nav-item">
+            <button class="nav-link ia-nav-link border-0 bg-transparent"
+                    data-bs-toggle="modal" data-bs-target="#modalCAE">
+              🔍 Consultar CAE
+            </button>
+          </li>
         {% else %}
           <li class="nav-item">
             <a class="nav-link ia-nav-link" href="/#features">Funciones</a>
@@ -161,6 +167,96 @@
   applyDarkToggleIcons();
 </script>
 {% block scripts %}{% endblock %}
+
+<!-- ═══════════════════ MODAL CONSULTAR CAE ═══════════════════ -->
+{% if user %}
+<div class="modal fade" id="modalCAE" tabindex="-1" aria-labelledby="modalCAELabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
+    <div class="modal-content" style="border-radius:16px; border:none">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold" id="modalCAELabel">Consultar CAE — AFIP</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body px-4 pb-4">
+        <p class="text-muted mb-3" style="font-size:13px">
+          Validá un Código de Autorización Electrónico contra el webservice de AFIP/ARCA.
+        </p>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" style="font-size:13px">CAE <span class="text-muted">(14 dígitos)</span></label>
+          <input type="text" id="cae-input" class="form-control font-monospace"
+                 maxlength="14" placeholder="12345678901234"
+                 oninput="this.value=this.value.replace(/\D/g,'')">
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold" style="font-size:13px">CUIT Emisor</label>
+          <input type="text" id="cuit-input" class="form-control font-monospace"
+                 maxlength="13" placeholder="20-12345678-9"
+                 oninput="this.value=this.value.replace(/[^\d\-]/g,'')">
+        </div>
+        <button class="btn btn-primary w-100 fw-bold" onclick="consultarCAE()" id="btn-consultar-cae"
+                style="border-radius:10px; padding:10px">
+          Consultar
+        </button>
+        <div id="cae-resultado" class="mt-3" style="display:none">
+          <!-- resultado se inserta aquí -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function consultarCAE() {
+  var cae  = document.getElementById('cae-input').value.trim();
+  var cuit = document.getElementById('cuit-input').value.trim();
+  var res  = document.getElementById('cae-resultado');
+  var btn  = document.getElementById('btn-consultar-cae');
+
+  if (cae.length !== 14) { alert('El CAE debe tener exactamente 14 dígitos.'); return; }
+  if (!cuit)             { alert('Ingresá el CUIT del emisor.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Consultando…';
+  res.style.display = 'none';
+
+  try {
+    var r = await fetch('/cae/validar?cae=' + encodeURIComponent(cae) + '&cuit=' + encodeURIComponent(cuit));
+    var d = await r.json();
+
+    var color  = d.valido ? '#22c55e' : '#ef4444';
+    var icon   = d.valido ? '✅' : '❌';
+    var estado = d.estado || (d.valido ? 'VIGENTE' : 'VENCIDO');
+
+    res.innerHTML =
+      '<div class="rounded p-3" style="background:var(--bs-secondary-bg)">' +
+        '<div class="d-flex align-items-center gap-2 mb-2">' +
+          '<span style="font-size:22px">' + icon + '</span>' +
+          '<span class="fw-bold" style="font-size:18px; color:' + color + '">' + estado + '</span>' +
+        '</div>' +
+        '<table class="table table-sm mb-0" style="font-size:13px">' +
+          '<tr><td class="text-muted pe-3">CAE</td><td class="fw-semibold font-monospace">' + (d.cae || cae) + '</td></tr>' +
+          '<tr><td class="text-muted pe-3">Vencimiento</td><td class="fw-semibold">' + (d.vencimiento || '—') + '</td></tr>' +
+        '</table>' +
+      '</div>';
+    res.style.display = '';
+  } catch(e) {
+    res.innerHTML = '<div class="alert alert-danger mb-0" style="font-size:13px">Error al consultar AFIP. Intentá nuevamente.</div>';
+    res.style.display = '';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Consultar';
+}
+
+// Limpiar resultado al cerrar modal
+document.getElementById('modalCAE').addEventListener('hidden.bs.modal', function() {
+  document.getElementById('cae-resultado').style.display = 'none';
+  document.getElementById('cae-resultado').innerHTML = '';
+  document.getElementById('cae-input').value = '';
+  document.getElementById('cuit-input').value = '';
+});
+</script>
+{% endif %}
 
 </body>
 </html>

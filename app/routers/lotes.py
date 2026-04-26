@@ -269,6 +269,38 @@ async def reprocesar_lote(
 
 
 # ═══════════════════════════════════════════════════════════
+# POST /app/facturas/{factura_id}/reprocesar  — fuerza LLM
+# ═══════════════════════════════════════════════════════════
+
+@router.post("/app/facturas/{factura_id}/reprocesar")
+async def reprocesar_factura(
+    factura_id: int,
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+
+    res = await db.execute(
+        select(Factura).where(Factura.id == factura_id, Factura.usuario_id == user.id)
+    )
+    factura = res.scalar_one_or_none()
+    if not factura:
+        return JSONResponse({"error": "Factura no encontrada"}, status_code=404)
+
+    factura.estado = "pendiente"
+    await db.commit()
+
+    try:
+        from tasks.procesar_factura import procesar_factura as tarea
+        tarea.delay(factura_id, factura.archivo_path, force_llm=True)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+    return JSONResponse({"ok": True})
+
+
+# ═══════════════════════════════════════════════════════════
 # DELETE /app/lotes/{lote_id}
 # ═══════════════════════════════════════════════════════════
 
