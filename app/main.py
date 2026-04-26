@@ -28,12 +28,13 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.routers import auth, facturas, cae, api_publica  # noqa: E402
+from app.routers import auth, facturas, cae, api_publica, lotes  # noqa: E402
 
 app.include_router(auth.router)
 app.include_router(facturas.router)
 app.include_router(cae.router)
 app.include_router(api_publica.router)
+app.include_router(lotes.router)
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

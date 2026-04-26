@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}{{ lote.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container-xl py-5" style="margin-top:70px">
+
+  <a href="/app/lotes" class="text-decoration-none fw-medium d-block mb-4"
+     style="font-size:13px; color:var(--ia-sub)">← Volver a lotes</a>
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">{{ lote.nombre }}</h2>
+      <p class="text-muted mb-0" style="font-size:13px">
+        Creado el {{ lote.created_at.strftime('%d/%m/%Y %H:%M') }}
+      </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      {% if lote.estado in ['con_errores', 'pendiente', 'completado'] %}
+      <button class="btn btn-outline-success fw-semibold" onclick="reprocesar()">↺ Reprocesar errores</button>
+      {% endif %}
+      <button class="btn btn-outline-secondary fw-semibold" onclick="verificar()">↺ Actualizar</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3">
+        <div class="fw-bold" style="font-size:28px" id="stat-total">{{ lote.total }}</div>
+        <div class="text-muted" style="font-size:12px">Total</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3">
+        <div class="fw-bold text-success" style="font-size:28px" id="stat-proc">{{ lote.procesados }}</div>
+        <div class="text-muted" style="font-size:12px">Procesados</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3">
+        <div class="fw-bold text-danger" style="font-size:28px" id="stat-err">{{ lote.errores }}</div>
+        <div class="text-muted" style="font-size:12px">Errores</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3">
+        <div id="stat-estado" style="font-size:18px; padding-top:4px">
+          {% if lote.estado == 'completado' %}
+            <span class="badge bg-success fs-6">completado</span>
+          {% elif lote.estado == 'procesando' %}
+            <span class="badge bg-warning text-dark fs-6">procesando</span>
+          {% elif lote.estado == 'con_errores' %}
+            <span class="badge bg-danger fs-6">con errores</span>
+          {% else %}
+            <span class="badge bg-secondary fs-6">{{ lote.estado }}</span>
+          {% endif %}
+        </div>
+        <div class="text-muted" style="font-size:12px; margin-top:4px">Estado</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla de facturas -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-bottom py-3">
+      <h6 class="fw-bold mb-0">Documentos del lote</h6>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle" style="font-size:13px">
+        <thead style="background:var(--bs-secondary-bg)">
+          <tr>
+            <th class="ps-4 py-3">#</th>
+            <th class="py-3">Archivo</th>
+            <th class="py-3">Tipo</th>
+            <th class="py-3">CUIT Emisor</th>
+            <th class="py-3 text-end">Importe</th>
+            <th class="py-3">CAE</th>
+            <th class="py-3">Estado</th>
+            <th class="pe-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in facturas %}
+          <tr>
+            <td class="ps-4 text-muted">{{ loop.index }}</td>
+            <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
+              {{ f.archivo_path | replace('uploads\\', '') | replace('uploads/', '') }}
+            </td>
+            <td>
+              {% if f.tipo_documento %}
+                <span class="badge bg-secondary" style="font-size:11px">{{ f.tipo_documento | replace('_', ' ') }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td style="font-family:monospace">{{ f.cuit_emisor or '—' }}</td>
+            <td class="text-end fw-semibold">
+              {% if f.importe %}${{ "{:,.2f}".format(f.importe) }}{% else %}—{% endif %}
+            </td>
+            <td>
+              {% if f.cae_valido is not none %}
+                {% if f.cae_valido %}
+                  <span class="badge bg-success" style="font-size:11px">VIGENTE</span>
+                {% else %}
+                  <span class="badge bg-danger" style="font-size:11px">VENCIDO</span>
+                {% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if f.estado == 'completado' %}
+                <span class="badge bg-success" style="font-size:11px">completado</span>
+              {% elif f.estado == 'procesando' %}
+                <span class="badge bg-warning text-dark" style="font-size:11px">procesando</span>
+              {% elif f.estado == 'error' %}
+                <span class="badge bg-danger" style="font-size:11px">error</span>
+              {% else %}
+                <span class="badge bg-secondary" style="font-size:11px">{{ f.estado }}</span>
+              {% endif %}
+            </td>
+            <td class="pe-4">
+              {% if f.estado == 'completado' %}
+              <a href="/app/facturas/{{ f.id }}" class="btn btn-sm btn-outline-secondary">Ver</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-muted py-4">No hay documentos en este lote.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var LOTE_ID = {{ lote.id }};
+
+async function verificar() {
+  var r = await fetch('/app/lotes/' + LOTE_ID + '/estado');
+  var d = await r.json();
+  document.getElementById('stat-total').textContent  = d.total;
+  document.getElementById('stat-proc').textContent   = d.procesados;
+  document.getElementById('stat-err').textContent    = d.errores;
+  var badgeMap = {
+    completado:  '<span class="badge bg-success fs-6">completado</span>',
+    procesando:  '<span class="badge bg-warning text-dark fs-6">procesando</span>',
+    con_errores: '<span class="badge bg-danger fs-6">con errores</span>',
+    pendiente:   '<span class="badge bg-secondary fs-6">pendiente</span>',
+  };
+  document.getElementById('stat-estado').innerHTML = badgeMap[d.estado] || d.estado;
+  if (d.estado !== 'procesando') clearInterval(polling);
+}
+
+async function reprocesar() {
+  var r = await fetch('/app/lotes/' + LOTE_ID + '/reprocesar', { method: 'POST' });
+  var d = await r.json();
+  if (d.ok) { alert('Encoladas ' + d.encoladas + ' facturas.'); location.reload(); }
+}
+
+// Auto-polling si está procesando
+{% if lote.estado == 'procesando' %}
+var polling = setInterval(verificar, 5000);
+{% endif %}
+</script>
+{% endblock %}

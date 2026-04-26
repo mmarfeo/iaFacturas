@@ -11,6 +11,7 @@ class Factura(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     usuario_id: Mapped[int] = mapped_column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    lote_id: Mapped[int] = mapped_column(Integer, ForeignKey("lotes.id"), nullable=True, index=True)
 
     # Archivo
     archivo_path: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -41,3 +42,4 @@ class Factura(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
 
     usuario: Mapped["Usuario"] = relationship("Usuario", back_populates="facturas")
+    lote: Mapped["Lote"] = relationship("Lote", back_populates="facturas")

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Lotes{% endblock %}
+
+{% block content %}
+<div class="container-xl py-5" style="margin-top:70px">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+      <h2 class="fw-bold mb-1">Lotes procesados</h2>
+      <p class="text-muted mb-0" style="font-size:14px">
+        Subí múltiples documentos agrupados por proveedor, período o tipo de comprobante.
+      </p>
+    </div>
+    <a href="/app/lotes/nuevo" class="btn btn-primary fw-bold px-4">
+      + Nuevo lote
+    </a>
+  </div>
+
+  {% if lotes %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle" style="font-size:14px">
+        <thead style="background:var(--bs-secondary-bg)">
+          <tr>
+            <th class="ps-4 py-3">Nombre</th>
+            <th class="py-3">Fecha</th>
+            <th class="py-3 text-center">Total</th>
+            <th class="py-3 text-center">Procesados</th>
+            <th class="py-3 text-center">Errores</th>
+            <th class="py-3">Estado</th>
+            <th class="pe-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody id="tabla-lotes">
+          {% for lote in lotes %}
+          <tr id="fila-lote-{{ lote.id }}">
+            <td class="ps-4 fw-semibold">
+              <a href="/app/lotes/{{ lote.id }}" class="text-decoration-none" style="color:var(--bs-body-color)">
+                {{ lote.nombre }}
+              </a>
+            </td>
+            <td class="text-muted">{{ lote.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td class="text-center fw-semibold" id="total-{{ lote.id }}">{{ lote.total }}</td>
+            <td class="text-center text-success fw-semibold" id="proc-{{ lote.id }}">{{ lote.procesados }}</td>
+            <td class="text-center fw-semibold" id="err-{{ lote.id }}"
+                style="color:{{ '#ef4444' if lote.errores > 0 else 'inherit' }}">{{ lote.errores }}</td>
+            <td id="estado-{{ lote.id }}">
+              {% set e = lote.estado %}
+              {% if e == 'completado' %}
+                <span class="badge bg-success">completado</span>
+              {% elif e == 'procesando' %}
+                <span class="badge bg-warning text-dark">procesando</span>
+              {% elif e == 'con_errores' %}
+                <span class="badge bg-danger">con errores</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ e }}</span>
+              {% endif %}
+            </td>
+            <td class="pe-4">
+              <div class="d-flex gap-1 justify-content-end flex-wrap">
+                <a href="/app/lotes/{{ lote.id }}" class="btn btn-sm btn-outline-secondary">Ver</a>
+                {% if lote.estado in ['con_errores', 'pendiente'] %}
+                <button class="btn btn-sm btn-success"
+                        onclick="reprocesar({{ lote.id }})">↺ Reprocesar</button>
+                {% elif lote.estado == 'procesando' %}
+                <button class="btn btn-sm btn-outline-warning"
+                        onclick="verificarEstado({{ lote.id }})">↺ Verificar</button>
+                {% elif lote.estado == 'completado' %}
+                <button class="btn btn-sm btn-outline-secondary"
+                        onclick="reprocesar({{ lote.id }})">↺ Reprocesar</button>
+                {% endif %}
+                <button class="btn btn-sm btn-outline-danger"
+                        onclick="eliminar({{ lote.id }})">×</button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <div style="font-size:48px; opacity:.3">📁</div>
+    <p class="mt-3">Todavía no tenés lotes. <a href="/app/lotes/nuevo">Creá el primero</a>.</p>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+async function reprocesar(id) {
+  const r = await fetch(`/app/lotes/${id}/reprocesar`, { method: 'POST' });
+  const d = await r.json();
+  if (d.ok) {
+    alert(`Encoladas ${d.encoladas} facturas para reprocesar.`);
+    location.reload();
+  }
+}
+
+async function eliminar(id) {
+  if (!confirm('¿Eliminar el lote y todos sus archivos?')) return;
+  const r = await fetch(`/app/lotes/${id}`, { method: 'DELETE' });
+  const d = await r.json();
+  if (d.ok) document.getElementById(`fila-lote-${id}`).remove();
+}
+
+async function verificarEstado(id) {
+  const r = await fetch(`/app/lotes/${id}/estado`);
+  const d = await r.json();
+  document.getElementById(`total-${id}`).textContent  = d.total;
+  document.getElementById(`proc-${id}`).textContent   = d.procesados;
+  document.getElementById(`err-${id}`).textContent    = d.errores;
+  const badgeMap = {
+    completado:  '<span class="badge bg-success">completado</span>',
+    procesando:  '<span class="badge bg-warning text-dark">procesando</span>',
+    con_errores: '<span class="badge bg-danger">con errores</span>',
+    pendiente:   '<span class="badge bg-secondary">pendiente</span>',
+  };
+  document.getElementById(`estado-${id}`).innerHTML = badgeMap[d.estado] || d.estado;
+}
+
+// Auto-polling para lotes en procesamiento
+document.querySelectorAll('[id^="fila-lote-"]').forEach(function(fila) {
+  var estadoEl = fila.querySelector('[id^="estado-"]');
+  if (estadoEl && estadoEl.textContent.includes('procesando')) {
+    var id = fila.id.replace('fila-lote-', '');
+    var iv = setInterval(function() {
+      verificarEstado(id).then(function() {
+        var txt = document.getElementById('estado-' + id).textContent;
+        if (!txt.includes('procesando')) clearInterval(iv);
+      });
+    }, 5000);
+  }
+});
+</script>
+{% endblock %}

@@ -112,7 +112,9 @@ def procesar_factura(self, factura_id: int, archivo_path: str):
 
         # ── Step 5: Guardar en DB ─────────────────────────────────────────────
         _set_step(r, factura_id, 5)
-        asyncio.run(_guardar(factura_id, campos, tipo_doc, metodo_final))
+        lote_id = asyncio.run(_guardar(factura_id, campos, tipo_doc, metodo_final))
+        if lote_id:
+            asyncio.run(_actualizar_lote(lote_id))
 
         _set_step(r, factura_id, 5, "done")
         return {
@@ -126,6 +128,13 @@ def procesar_factura(self, factura_id: int, archivo_path: str):
 
     except Exception as exc:
         _set_step(r, factura_id, 0, "error", str(exc))
+        # Intentar actualizar stats del lote aunque haya error
+        try:
+            lote_id = asyncio.run(_get_lote_id(factura_id))
+            if lote_id:
+                asyncio.run(_actualizar_lote(lote_id))
+        except Exception:
+            pass
         raise self.retry(exc=exc, countdown=30)
 
 
@@ -141,8 +150,53 @@ def _campos_clave_para_tipo(tipo: str) -> list[str]:
             "razon_social_receptor", "condicion_venta", "concepto"]
 
 
+async def _get_lote_id(factura_id: int):
+    from app.core.database import AsyncSessionLocal
+    from app.models.factura import Factura
+    from sqlalchemy import select
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(select(Factura.lote_id).where(Factura.id == factura_id))
+        row = res.scalar_one_or_none()
+        return row
+
+
+async def _actualizar_lote(lote_id: int):
+    """Recalcula y persiste los stats del lote."""
+    from app.core.database import AsyncSessionLocal
+    from app.models.factura import Factura
+    from app.models.lote import Lote
+    from sqlalchemy import select, func
+
+    async with AsyncSessionLocal() as db:
+        stats = (await db.execute(
+            select(
+                func.count(Factura.id).label("total"),
+                func.count(Factura.id).filter(Factura.estado == "completado").label("procesados"),
+                func.count(Factura.id).filter(Factura.estado == "error").label("errores"),
+            ).where(Factura.lote_id == lote_id)
+        )).one()
+
+        procesados = stats.procesados or 0
+        errores    = stats.errores or 0
+        total      = stats.total or 0
+
+        res = await db.execute(select(Lote).where(Lote.id == lote_id))
+        lote = res.scalar_one_or_none()
+        if not lote:
+            return
+
+        lote.total      = total
+        lote.procesados = procesados
+        lote.errores    = errores
+        if procesados + errores >= total and total > 0:
+            lote.estado = "con_errores" if errores > 0 else "completado"
+        else:
+            lote.estado = "procesando"
+        await db.commit()
+
+
 async def _guardar(factura_id: int, campos: dict, tipo_doc: str, metodo: str):
-    """Persiste el resultado en PostgreSQL."""
+    """Persiste el resultado en PostgreSQL. Retorna lote_id si tiene."""
     from app.core.database import AsyncSessionLocal
     from app.models.factura import Factura
     from sqlalchemy import select
@@ -152,7 +206,7 @@ async def _guardar(factura_id: int, campos: dict, tipo_doc: str, metodo: str):
         res = await db.execute(select(Factura).where(Factura.id == factura_id))
         factura = res.scalar_one_or_none()
         if not factura:
-            return
+            return None
 
         # Serializar todo a tipos JSON-compatibles para JSONB
         factura.datos_extraidos = {
@@ -184,7 +238,9 @@ async def _guardar(factura_id: int, campos: dict, tipo_doc: str, metodo: str):
         factura.metodo_extraccion = metodo
         factura.estado          = "completado"
 
+        lote_id = factura.lote_id
         await db.commit()
+        return lote_id
 
 
 async def _guardar_error(factura_id: int, mensaje: str):
@@ -200,4 +256,7 @@ async def _guardar_error(factura_id: int, mensaje: str):
             return
         factura.estado          = "error"
         factura.datos_extraidos = {"error": mensaje}
+        lote_id = factura.lote_id
         await db.commit()
+        if lote_id:
+            await _actualizar_lote(lote_id)

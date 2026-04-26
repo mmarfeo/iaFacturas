@@ -80,6 +80,7 @@
     <!-- Tabs -->
     <div class="ia-tab-bar mb-3" style="width:fit-content">
       <button class="ia-tab-btn active" id="tab-datos" onclick="switchTab('datos')">Datos</button>
+      <button class="ia-tab-btn" id="tab-tabla" onclick="switchTab('tabla')">Tabla</button>
       <button class="ia-tab-btn" id="tab-json" onclick="switchTab('json')">JSON</button>
     </div>
 
@@ -189,6 +190,45 @@
       </div>
     </div>
 
+    <!-- Tab: Tabla -->
+    <div id="content-tabla" style="display:none">
+      {% set d = factura.datos_extraidos if factura and factura.datos_extraidos else {} %}
+      {% if d %}
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered align-middle" style="font-size:13px">
+          <thead>
+            <tr style="background:var(--bs-secondary-bg)">
+              <th style="width:38%; color:var(--ia-sub); font-weight:600">Campo</th>
+              <th style="color:var(--ia-sub); font-weight:600">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for key, val in d.items() %}
+            {% if not key.startswith('_') and val is not none and val != '' %}
+            <tr>
+              <td class="fw-semibold" style="color:var(--ia-sub); white-space:nowrap">
+                {{ key | replace('_', ' ') | title }}
+              </td>
+              <td style="font-family:monospace; word-break:break-all">
+                {% if val is mapping %}
+                  <pre style="font-size:11px; margin:0">{{ val | tojson(indent=2) }}</pre>
+                {% elif val is iterable and val is not string %}
+                  {{ val | join(', ') }}
+                {% else %}
+                  {{ val }}
+                {% endif %}
+              </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted">No hay datos extraídos disponibles.</p>
+      {% endif %}
+    </div>
+
     <!-- Tab: JSON -->
     <div id="content-json" style="display:none">
       <div class="ia-json-block">
@@ -217,10 +257,10 @@
 {% block scripts %}
 <script>
   function switchTab(tab) {
-    document.getElementById('content-datos').style.display = tab === 'datos' ? '' : 'none';
-    document.getElementById('content-json').style.display  = tab === 'json'  ? '' : 'none';
-    document.getElementById('tab-datos').classList.toggle('active', tab === 'datos');
-    document.getElementById('tab-json').classList.toggle('active',  tab === 'json');
+    ['datos', 'tabla', 'json'].forEach(function(t) {
+      document.getElementById('content-' + t).style.display = (t === tab) ? '' : 'none';
+      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    });
   }
 
   function copyJson() {

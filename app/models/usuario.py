@@ -21,6 +21,7 @@ class Usuario(Base):
     api_key: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, unique=True, index=True)
 
     plan: Mapped["Plan"] = relationship("Plan", back_populates="usuarios")
+    lotes: Mapped[list["Lote"]] = relationship("Lote", back_populates="usuario")
     facturas: Mapped[list["Factura"]] = relationship("Factura", back_populates="usuario")
     suscripciones: Mapped[list["Suscripcion"]] = relationship("Suscripcion", back_populates="usuario")
     uso_mensual: Mapped[list["UsoMensual"]] = relationship("UsoMensual", back_populates="usuario")

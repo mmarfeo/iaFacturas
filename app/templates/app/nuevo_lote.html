@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Nuevo lote{% endblock %}
+
+{% block content %}
+<div class="container-xl py-5" style="margin-top:70px; max-width:700px">
+
+  <a href="/app/lotes" class="text-decoration-none fw-medium d-block mb-4"
+     style="font-size:13px; color:var(--ia-sub)">← Volver a lotes</a>
+
+  <h2 class="fw-bold mb-1">Nuevo lote</h2>
+  <p class="text-muted mb-4" style="font-size:14px">
+    Agrupá múltiples documentos con un nombre: proveedor, período, tipo de comprobante, etc.
+  </p>
+
+  <form id="form-lote" enctype="multipart/form-data" onsubmit="subirLote(event)">
+
+    <!-- Nombre del lote -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <label class="form-label fw-semibold">Nombre del lote</label>
+        <input type="text" name="nombre" class="form-control" required
+               placeholder="Ej: Facturas PRONORTE — Abril 2026"
+               style="font-size:15px">
+        <div class="form-text">Podés usar el nombre del proveedor, período o tipo de comprobante.</div>
+      </div>
+    </div>
+
+    <!-- Zona de archivos -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <label class="form-label fw-semibold">Archivos (PDF, JPG, PNG…)</label>
+
+        <div id="zona-drop"
+             onclick="document.getElementById('input-files').click()"
+             style="border:2px dashed var(--bs-border-color); border-radius:12px;
+                    padding:40px; text-align:center; cursor:pointer; transition:.2s;
+                    background:var(--bs-secondary-bg)">
+          <div style="font-size:36px; opacity:.5">📂</div>
+          <p class="mb-1 fw-semibold mt-2">Arrastrá archivos aquí o hacé clic para seleccionar</p>
+          <p class="text-muted mb-0" style="font-size:13px">Formatos: PDF, JPG, PNG, WEBP, TIFF</p>
+        </div>
+
+        <input type="file" id="input-files" name="files" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp"
+               style="display:none" onchange="mostrarArchivos(this.files)">
+
+        <div id="lista-archivos" class="mt-3"></div>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div id="zona-progress" style="display:none" class="mb-4">
+      <div class="d-flex justify-content-between mb-1" style="font-size:13px">
+        <span id="prog-label">Subiendo…</span>
+        <span id="prog-pct">0%</span>
+      </div>
+      <div class="progress" style="height:8px; border-radius:8px">
+        <div id="prog-bar" class="progress-bar" style="width:0%; border-radius:8px"></div>
+      </div>
+    </div>
+
+    <button type="submit" id="btn-submit" class="btn btn-primary fw-bold px-5 py-2"
+            style="font-size:15px; border-radius:10px">
+      Subir y procesar
+    </button>
+  </form>
+
+</div>
+
+<script>
+// Drag & drop
+var zona = document.getElementById('zona-drop');
+zona.addEventListener('dragover', function(e) {
+  e.preventDefault();
+  zona.style.borderColor = 'var(--ia-accent)';
+});
+zona.addEventListener('dragleave', function() {
+  zona.style.borderColor = 'var(--bs-border-color)';
+});
+zona.addEventListener('drop', function(e) {
+  e.preventDefault();
+  zona.style.borderColor = 'var(--bs-border-color)';
+  var input = document.getElementById('input-files');
+  var dt = new DataTransfer();
+  Array.from(e.dataTransfer.files).forEach(function(f) { dt.items.add(f); });
+  input.files = dt.files;
+  mostrarArchivos(input.files);
+});
+
+function mostrarArchivos(files) {
+  var lista = document.getElementById('lista-archivos');
+  if (!files.length) { lista.innerHTML = ''; return; }
+  var html = '<p class="fw-semibold mb-2" style="font-size:13px">' + files.length + ' archivos seleccionados:</p><ul class="list-unstyled mb-0" style="font-size:12px; color:var(--ia-sub)">';
+  Array.from(files).forEach(function(f) {
+    html += '<li>📄 ' + f.name + ' <span class="text-muted">(' + (f.size/1024).toFixed(1) + ' KB)</span></li>';
+  });
+  html += '</ul>';
+  lista.innerHTML = html;
+}
+
+function subirLote(e) {
+  e.preventDefault();
+  var input = document.getElementById('input-files');
+  if (!input.files.length) { alert('Seleccioná al menos un archivo.'); return; }
+
+  var btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.textContent = 'Subiendo…';
+
+  document.getElementById('zona-progress').style.display = '';
+  var bar  = document.getElementById('prog-bar');
+  var pct  = document.getElementById('prog-pct');
+  var lbl  = document.getElementById('prog-label');
+
+  var form = new FormData(document.getElementById('form-lote'));
+  var xhr  = new XMLHttpRequest();
+
+  xhr.upload.onprogress = function(ev) {
+    if (ev.lengthComputable) {
+      var p = Math.round(ev.loaded / ev.total * 100);
+      bar.style.width = p + '%';
+      pct.textContent = p + '%';
+    }
+  };
+
+  xhr.onload = function() {
+    if (xhr.status >= 200 && xhr.status < 400) {
+      // El servidor redirige a /app/lotes/{id} con 302
+      window.location.href = xhr.responseURL || '/app/lotes';
+    } else {
+      alert('Error al crear el lote. Intentá nuevamente.');
+      btn.disabled = false;
+      btn.textContent = 'Subir y procesar';
+    }
+  };
+  xhr.onerror = function() {
+    alert('Error de conexión.');
+    btn.disabled = false;
+    btn.textContent = 'Subir y procesar';
+  };
+
+  lbl.textContent = 'Subiendo ' + input.files.length + ' archivos…';
+  xhr.open('POST', '/app/lotes/nuevo');
+  xhr.send(form);
+}
+</script>
+{% endblock %}
