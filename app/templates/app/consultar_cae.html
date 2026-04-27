@@ -197,18 +197,6 @@
 
         <!-- Tab 2: Pegar URLs -->
         <div class="tab-pane fade" id="tab-urls" role="tabpanel">
-          <p class="mb-3" style="font-size:.9rem; color:var(--ia-sub)">
-            Pegá las URLs del código QR de las facturas (una por línea) o subí un archivo CSV/TXT.<br>
-            <strong>Origen:</strong> el texto del QR de cada factura AFIP empieza con
-            <code>https://www.afip.gob.ar/fe/qr/</code>
-          </p>
-          <label class="fw-semibold mb-1 d-block" for="qr-urls-input" style="font-size:.9rem">
-            URLs del QR (una por línea)
-          </label>
-          <textarea id="qr-urls-input" class="form-control font-monospace mb-3"
-                    style="min-height:130px; font-size:.82rem; resize:vertical"
-                    placeholder="https://www.afip.gob.ar/fe/qr/?p=eyJ2ZXIiOjEsImZlY2hhIjoiMjAyNS0wNC0xMCIsImN1aXQiO..."
-                    spellcheck="false"></textarea>
           <p class="fw-semibold mb-1" style="font-size:.9rem">O subí un archivo CSV/TXT con las URLs</p>
           <input type="file" id="csv-file-input" accept=".csv,.txt,text/plain,text/csv" class="form-control mb-1">
           <p class="mb-3" style="font-size:.78rem; color:var(--ia-sub)">
@@ -227,9 +215,22 @@
       <!-- Summary strip -->
       <div class="cae-summary" id="results-summary"></div>
 
+      <!-- Barra de progreso de validación AFIP -->
+      <div class="mb-2" id="validation-progress-wrap" hidden>
+        <div class="d-flex justify-content-between mb-1" style="font-size:.82rem; color:var(--ia-sub)">
+          <span id="validation-progress-label">Validando en AFIP…</span>
+          <span id="validation-progress-pct">0%</span>
+        </div>
+        <div class="progress" style="height:6px">
+          <div id="validation-progress-bar"
+               class="progress-bar bg-success progress-bar-striped progress-bar-animated"
+               style="width:0%" role="progressbar"></div>
+        </div>
+      </div>
+
       <!-- Export CSV -->
       <div class="mb-3">
-        <button class="btn btn-sm btn-success fw-semibold" id="btn-export-csv">
+        <button class="btn btn-sm btn-success fw-semibold" id="btn-export-csv" disabled>
           ⬇ Exportar CSV
         </button>
       </div>
@@ -367,6 +368,13 @@ function renderResults(results) {
   if (!tbody) return;
   tbody.innerHTML = '';
   if (logBody) logBody.innerHTML = '';
+
+  // Reset progreso y botón
+  if (progWrap)  { progWrap.hidden = true; }
+  if (progBar)   { progBar.style.width = '0%'; progBar.classList.add('progress-bar-striped', 'progress-bar-animated'); }
+  if (progPct)   { progPct.textContent = '0%'; }
+  if (progLabel) { progLabel.textContent = 'Validando en AFIP…'; }
+  if (btnExport) { btnExport.disabled = true; }
 
   var okCount  = 0;
   var errCount = 0;
@@ -624,13 +632,45 @@ function validateCell(cell) {
   });
 }
 
+var progWrap  = document.getElementById('validation-progress-wrap');
+var progBar   = document.getElementById('validation-progress-bar');
+var progPct   = document.getElementById('validation-progress-pct');
+var progLabel = document.getElementById('validation-progress-label');
+
+function setProgress(done, total) {
+  var pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  if (progBar)  { progBar.style.width = pct + '%'; }
+  if (progPct)  { progPct.textContent = pct + '%'; }
+  if (progLabel && done < total) { progLabel.textContent = 'Validando en AFIP… (' + done + ' de ' + total + ')'; }
+  if (done >= total) {
+    if (progLabel) { progLabel.textContent = 'Validación completa (' + total + ' de ' + total + ')'; }
+    if (progBar)   { progBar.classList.remove('progress-bar-striped', 'progress-bar-animated'); }
+    if (btnExport) { btnExport.disabled = false; }
+  }
+}
+
 function startAfipValidation() {
   var cells = document.querySelectorAll('.cae-status-cell[data-afip-url]');
-  if (!cells.length) return;
+
+  if (btnExport) { btnExport.disabled = true; }
+
+  if (!cells.length) {
+    // No hay URLs que validar — habilitar el botón directamente
+    if (btnExport) { btnExport.disabled = false; }
+    return;
+  }
+
+  var total = cells.length;
+  var done  = 0;
+
+  if (progWrap) { progWrap.hidden = false; }
+  setProgress(0, total);
 
   (function processNext(i) {
-    if (i >= cells.length) return;
+    if (i >= total) return;
     validateCell(cells[i]).then(function () {
+      done++;
+      setProgress(done, total);
       setTimeout(function () { processNext(i + 1); }, 600);
     });
   })(0);
