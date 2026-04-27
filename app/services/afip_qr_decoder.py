@@ -219,93 +219,181 @@ def decode_multiple(input_text: str) -> list[dict]:
 
 # ─── QR reading from files ────────────────────────────────────────────────────
 
-def _try_decode_image(img_bgr, detector) -> Optional[str]:
+_GS_DPIS = [300, 400, 600]
+_MAX_PDF_PAGES = 5
+# PDFs with large embedded images (scanned) already have enough resolution at 300 DPI;
+# skip 600 DPI if the first raster exceeds this size to avoid timeout.
+_GS_SKIP_HIGH_DPI_KB = 400
+
+
+def _decode_bgr_image(img_bgr, detector) -> Optional[str]:
     """
-    Try multiple preprocessing strategies to decode a QR code from a BGR image.
-    Returns the decoded string or None.
+    Try pyzbar (primary, ZXing-based) then OpenCV on multiple image variants.
+    Mirrors the ZXing + upscale strategy used in QrDocumentDecoder.php.
     """
     import cv2
     import numpy as np
 
-    candidates = [img_bgr]
-
-    # 2x upscale — helps with small QR codes
     h, w = img_bgr.shape[:2]
-    candidates.append(cv2.resize(img_bgr, (w * 2, h * 2), interpolation=cv2.INTER_CUBIC))
-
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-
-    # Grayscale variants
     _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    adaptive = cv2.adaptiveThreshold(
-        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-    )
-    gray_2x = cv2.resize(gray, (w * 2, h * 2), interpolation=cv2.INTER_CUBIC)
-    otsu_2x = cv2.resize(otsu, (w * 2, h * 2), interpolation=cv2.INTER_NEAREST)
 
-    gray_candidates = [gray, otsu, adaptive, gray_2x, otsu_2x]
+    # Build candidate images: original + upscales (x2, x3)
+    base_variants = [img_bgr, gray, otsu]
+    all_variants = list(base_variants)
+    for factor in (2, 3):
+        nw, nh = w * factor, h * factor
+        all_variants.append(cv2.resize(img_bgr, (nw, nh), interpolation=cv2.INTER_CUBIC))
+        all_variants.append(cv2.resize(gray, (nw, nh), interpolation=cv2.INTER_CUBIC))
+        all_variants.append(cv2.resize(otsu, (nw, nh), interpolation=cv2.INTER_NEAREST))
 
-    # pyzbar first — significantly more robust than OpenCV's built-in detector
+    # pyzbar / ZXing — primary decoder
     try:
         from pyzbar.pyzbar import decode as pyzbar_decode
-        for candidate in candidates + [gray, otsu, adaptive, gray_2x, otsu_2x]:
-            results = pyzbar_decode(candidate)
+        for variant in all_variants:
+            try:
+                results = pyzbar_decode(variant)
+            except Exception:
+                continue
             for r in results:
                 if r.type == "QRCODE" and r.data:
                     return r.data.decode("utf-8", errors="replace")
     except ImportError:
         pass
-    except Exception:
-        pass
 
     # OpenCV fallback
-    for candidate in candidates:
-        data, _, _ = detector.detectAndDecode(candidate)
-        if data:
-            return data
-
-    for candidate in gray_candidates:
-        data, _, _ = detector.detectAndDecode(candidate)
-        if data:
-            return data
+    for variant in all_variants:
+        try:
+            data, _, _ = detector.detectAndDecode(variant)
+            if data:
+                return data
+        except Exception:
+            continue
 
     return None
 
 
+def _rasterize_pdf_page_gs(pdf_bytes: bytes, page: int, dpi: int) -> Optional[bytes]:
+    """
+    Rasterize one PDF page to PNG bytes using the Ghostscript CLI.
+    Returns PNG bytes or None on failure.
+    """
+    import subprocess
+    import tempfile
+    import os
+    import shutil
+
+    gs = shutil.which("gs") or shutil.which("gswin64c") or shutil.which("gswin32c")
+    if gs is None:
+        return None
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        pdf_path = os.path.join(tmpdir, "input.pdf")
+        out_path = os.path.join(tmpdir, "page.png")
+        with open(pdf_path, "wb") as f:
+            f.write(pdf_bytes)
+
+        cmd = [
+            gs,
+            "-dQUIET", "-dSAFER", "-dBATCH", "-dNOPAUSE",
+            "-sDEVICE=png16m",
+            f"-r{dpi}",
+            f"-dFirstPage={page}",
+            f"-dLastPage={page}",
+            f"-sOutputFile={out_path}",
+            pdf_path,
+        ]
+        try:
+            result = subprocess.run(cmd, timeout=90, capture_output=True)
+        except Exception:
+            return None
+
+        if result.returncode != 0 or not os.path.isfile(out_path):
+            return None
+
+        file_size = os.path.getsize(out_path)
+        if file_size < 64:
+            return None
+
+        with open(out_path, "rb") as f:
+            return f.read()
+
+
 def read_qr_from_image_bytes(image_bytes: bytes, mime_type: str) -> dict:
     """
-    Read a QR code from image/PDF bytes using pyzbar (primary) and OpenCV (fallback).
-    For PDFs, converts pages to images first using pdf2image.
+    Read a QR code from image/PDF bytes.
+    For PDFs: uses Ghostscript at 300/400/600 DPI (mirrors QrDocumentDecoder.php).
+    For images: uses pyzbar (ZXing) + OpenCV with multiple upscale variants.
 
     Returns: {"payload": str|None, "error": str|None, "source": str}
     """
     import cv2
     import numpy as np
 
-    images_bgr: list[np.ndarray] = []
+    detector = cv2.QRCodeDetector()
 
     if mime_type == "application/pdf":
+        # Strategy 1: Ghostscript CLI (same as PHP — multiple DPIs per page)
+        first_raster_kb: Optional[int] = None
+        gs_available = True
+
+        for page in range(1, _MAX_PDF_PAGES + 1):
+            for dpi in _GS_DPIS:
+                # Skip 600 DPI if first raster was large (already high-res PDF)
+                if dpi == 600 and first_raster_kb is not None and first_raster_kb > _GS_SKIP_HIGH_DPI_KB:
+                    continue
+
+                png_bytes = _rasterize_pdf_page_gs(image_bytes, page, dpi)
+
+                if png_bytes is None:
+                    gs_available = False
+                    break  # Ghostscript not available, fall through to pdf2image
+
+                kb = len(png_bytes) // 1024
+                if first_raster_kb is None:
+                    first_raster_kb = kb
+
+                arr = np.frombuffer(png_bytes, np.uint8)
+                img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+                if img is None:
+                    continue
+
+                payload = _decode_bgr_image(img, detector)
+                if payload:
+                    return {"payload": payload, "error": None, "source": f"pdf:p{page}:gs:{dpi}"}
+
+            if not gs_available:
+                break
+
+        if gs_available:
+            return {"payload": None, "error": "No se encontró código QR en el archivo", "source": "pdf:gs"}
+
+        # Strategy 2: pdf2image fallback (when Ghostscript is not available)
         try:
             from pdf2image import convert_from_bytes
             pil_images = convert_from_bytes(
-                image_bytes, dpi=200, first_page=1, last_page=5,
+                image_bytes, dpi=300, first_page=1, last_page=_MAX_PDF_PAGES,
             )
-            for pil_img in pil_images:
-                rgb = np.array(pil_img.convert("RGB"))
-                images_bgr.append(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
         except Exception as e:
             return {"payload": None, "error": f"Error al convertir PDF: {e}", "source": "pdf2image"}
+
+        for i, pil_img in enumerate(pil_images, start=1):
+            rgb = np.array(pil_img.convert("RGB"))
+            img = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+            payload = _decode_bgr_image(img, detector)
+            if payload:
+                return {"payload": payload, "error": None, "source": f"pdf:p{i}:pdf2image"}
+
+        return {"payload": None, "error": "No se encontró código QR en el archivo", "source": "pdf2image"}
+
     else:
         arr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if img is None:
             return {"payload": None, "error": "No se pudo decodificar la imagen", "source": "cv2"}
-        images_bgr = [img]
 
-    detector = cv2.QRCodeDetector()
-    for img in images_bgr:
-        payload = _try_decode_image(img, detector)
+        payload = _decode_bgr_image(img, detector)
         if payload:
-            return {"payload": payload, "error": None, "source": "qr_decoder"}
+            return {"payload": payload, "error": None, "source": "image"}
 
-    return {"payload": None, "error": "No se encontró código QR en el archivo", "source": "qr_decoder"}
+        return {"payload": None, "error": "No se encontró código QR en el archivo", "source": "image"}
