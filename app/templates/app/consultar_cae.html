@@ -215,24 +215,24 @@
       <!-- Summary strip -->
       <div class="cae-summary" id="results-summary"></div>
 
-      <!-- Barra de progreso de validación AFIP -->
-      <div class="mb-2" id="validation-progress-wrap" hidden>
-        <div class="d-flex justify-content-between mb-1" style="font-size:.82rem; color:var(--ia-sub)">
-          <span id="validation-progress-label">Validando en AFIP…</span>
-          <span id="validation-progress-pct">0%</span>
+      <!-- Barra de progreso + botón Export en una sola fila -->
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div id="validation-progress-wrap" style="flex:0 0 90%" hidden>
+          <div class="d-flex justify-content-between mb-1" style="font-size:.82rem; color:var(--ia-sub)">
+            <span id="validation-progress-label">Validando en AFIP…</span>
+            <span id="validation-progress-pct">0%</span>
+          </div>
+          <div class="progress" style="height:6px">
+            <div id="validation-progress-bar"
+                 class="progress-bar bg-success progress-bar-striped progress-bar-animated"
+                 style="width:0%" role="progressbar"></div>
+          </div>
         </div>
-        <div class="progress" style="height:6px">
-          <div id="validation-progress-bar"
-               class="progress-bar bg-success progress-bar-striped progress-bar-animated"
-               style="width:0%" role="progressbar"></div>
+        <div style="flex:0 0 auto; margin-left:auto">
+          <button class="btn btn-sm btn-success fw-semibold" id="btn-export-csv" disabled>
+            ⬇ Exportar CSV
+          </button>
         </div>
-      </div>
-
-      <!-- Export CSV -->
-      <div class="mb-3">
-        <button class="btn btn-sm btn-success fw-semibold" id="btn-export-csv" disabled>
-          ⬇ Exportar CSV
-        </button>
       </div>
 
       <!-- Sub-tabs: Resultados / Log -->
