@@ -1,0 +1,695 @@
+{% extends "base.html" %}
+{% block title %}Consultar CAE{% endblock %}
+
+{% block head %}
+<style>
+/* ── Layout ──────────────────────────────────────────────── */
+.cae-page { min-height: 100vh; background: var(--bs-body-bg); }
+.cae-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 20px 60px; }
+
+/* ── Drop zone ────────────────────────────────────────────── */
+.cae-drop-zone {
+  border: 2px dashed var(--bs-border-color);
+  border-radius: 12px; padding: 2.5rem 1.5rem; text-align: center;
+  background: var(--bs-secondary-bg); cursor: pointer;
+  transition: border-color .2s, background .2s; position: relative;
+}
+.cae-drop-zone:hover, .cae-drop-zone.drag-over {
+  border-color: var(--ia-accent); background: color-mix(in srgb, var(--ia-accent) 6%, transparent);
+}
+.cae-drop-zone input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+
+/* ── Results table ────────────────────────────────────────── */
+.cae-table-wrap { overflow-x: auto; margin-top: .5rem; }
+.cae-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+.cae-table th {
+  background: #1a3a5c; color: #fff; padding: .45rem .6rem;
+  text-align: left; white-space: nowrap; position: sticky; top: 0;
+}
+[data-bs-theme="dark"] .cae-table th { background: #0f2033; }
+.cae-table td {
+  padding: .4rem .6rem; border-bottom: 1px solid var(--bs-border-color);
+  vertical-align: top;
+}
+.cae-table tr:hover td { background: var(--bs-tertiary-bg); }
+.cae-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.cae-table td.mono { font-family: monospace; font-size: .8rem; }
+.cae-table td.tipo { font-weight: 600; }
+.cae-table td.err { color: var(--bs-danger); font-style: italic; }
+
+/* ── CAE status badges ────────────────────────────────────── */
+.cae-badge {
+  display: inline-block; padding: .15rem .5rem; border-radius: 4px;
+  font-size: .75rem; font-weight: 600; white-space: nowrap;
+}
+.cae-badge--loading  { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
+.cae-badge--valid    { background: #d1fae5; color: #065f46; }
+.cae-badge--invalid  { background: #fee2e2; color: #991b1b; }
+.cae-badge--unknown  { background: #fef3c7; color: #92400e; }
+.cae-badge--error    { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
+[data-bs-theme="dark"] .cae-badge--valid   { background: #065f46; color: #a7f3d0; }
+[data-bs-theme="dark"] .cae-badge--invalid { background: #991b1b; color: #fecaca; }
+[data-bs-theme="dark"] .cae-badge--unknown { background: #92400e; color: #fde68a; }
+
+/* ── Importe AFIP ─────────────────────────────────────────── */
+.ia-match    { color: #065f46; font-weight: 600; }
+.ia-nd       { color: var(--bs-secondary-color); font-style: italic; font-size: .82rem; }
+.ia-mismatch { color: #991b1b; font-weight: 700; background: #fee2e2;
+               padding: .1rem .35rem; border-radius: 3px; cursor: help; }
+.ia-dif-zero    { color: var(--bs-secondary-color); font-size: .82rem; }
+.ia-dif-nonzero { color: #991b1b; font-weight: 700; background: #fee2e2;
+                  padding: .1rem .35rem; border-radius: 3px; }
+[data-bs-theme="dark"] .ia-match    { color: #6ee7b7; }
+[data-bs-theme="dark"] .ia-mismatch { background: #7f1d1d; color: #fca5a5; }
+[data-bs-theme="dark"] .ia-dif-nonzero { background: #7f1d1d; color: #fca5a5; }
+
+/* ── Observaciones ────────────────────────────────────────── */
+.obs-ok   { color: var(--bs-secondary-color); }
+.obs-warn { background: #fffbeb; color: #92400e; font-weight: 600;
+            border-left: 3px solid #f59e0b; padding: .25rem .45rem !important;
+            cursor: help; white-space: normal; line-height: 1.35; max-width: 260px; }
+[data-bs-theme="dark"] .obs-warn { background: #44330a; color: #fde68a; }
+
+/* ── Log de validación ────────────────────────────────────── */
+.afip-log-list { list-style: none; padding: 0; margin: 0; font-size: .82rem; }
+.afip-log-entry {
+  display: flex; gap: .6rem; align-items: flex-start;
+  padding: .45rem .5rem; border-bottom: 1px solid var(--bs-border-color);
+}
+.afip-log-entry:last-child { border-bottom: none; }
+.afip-log-icon {
+  flex-shrink: 0; width: 1.4rem; height: 1.4rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: .75rem;
+}
+.afip-log-icon--ok      { background: #d1fae5; color: #065f46; }
+.afip-log-icon--err     { background: #fee2e2; color: #991b1b; }
+.afip-log-icon--warn    { background: #fef3c7; color: #92400e; }
+.afip-log-icon--muted   { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
+.afip-log-icon--pending { background: #e0e7ff; color: #3730a3; }
+.afip-log-detail { flex: 1; min-width: 0; }
+.afip-log-comp  { margin: 0 0 .1rem; font-weight: 600; color: var(--bs-body-color); }
+.afip-log-url   { margin: 0 0 .1rem; color: var(--bs-secondary-color); word-break: break-all; }
+.afip-log-url code { font-size: .78rem; }
+.afip-log-resp  { margin: 0; color: var(--bs-body-color); }
+.afip-log-lbl   { color: var(--bs-secondary-color); margin-right: .25rem; }
+
+/* ── Overlay ──────────────────────────────────────────────── */
+.cae-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center; z-index: 9999;
+}
+.cae-overlay__box {
+  background: var(--bs-body-bg); border-radius: 14px;
+  padding: 2rem 2.5rem; text-align: center; max-width: 360px; width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+.cae-overlay__title { font-weight: 700; font-size: 1.1rem; margin-bottom: .5rem; }
+.cae-overlay__sub   { font-size: .88rem; color: var(--bs-secondary-color); margin: 0; }
+
+/* ── Summary strip ────────────────────────────────────────── */
+.cae-summary {
+  display: flex; flex-wrap: wrap; gap: 1.25rem;
+  margin-bottom: .75rem; font-size: .9rem;
+}
+.cae-summary__item { font-weight: 700; }
+.cae-summary__item span { font-weight: 400; margin-left: .3rem; color: var(--bs-secondary-color); }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Overlay de carga -->
+<div id="cae-overlay" class="cae-overlay" hidden aria-hidden="true">
+  <div class="cae-overlay__box" role="status">
+    <div class="spinner-border text-primary mb-3" style="width:2.5rem;height:2.5rem"></div>
+    <p class="cae-overlay__title" id="overlay-title">Procesando…</p>
+    <p class="cae-overlay__sub" id="overlay-sub">Esto puede tardar unos segundos.</p>
+    <div class="progress mt-3" style="height:6px">
+      <div id="overlay-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+           style="width:0%" role="progressbar"></div>
+    </div>
+  </div>
+</div>
+
+<div class="cae-page ia-page">
+  <div class="cae-wrap">
+
+    <!-- Header -->
+    <div class="mb-4">
+      <a href="/app/dashboard"
+         class="text-decoration-none fw-medium d-inline-block mb-3"
+         style="font-size:13px; color:var(--ia-sub)">← Volver al dashboard</a>
+      <h1 class="fw-bold mb-1" style="font-size:26px; letter-spacing:-0.5px">
+        🔍 Consultar CAE / Facturas AFIP
+      </h1>
+      <p class="mb-0" style="font-size:14px; color:var(--ia-sub)">
+        Dos formas de consultar comprobantes electrónicos AFIP: <strong>subí los PDFs</strong> para
+        que el servidor lea el QR automáticamente, o <strong>pegá las URLs del QR</strong> para
+        obtener los datos sin subir archivos.
+      </p>
+    </div>
+
+    <!-- Tabs de entrada -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4" style="overflow:hidden">
+      <ul class="nav nav-tabs px-3 pt-3" id="inputTab" role="tablist" style="border-bottom: 1px solid var(--bs-border-color)">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active fw-semibold" id="tab-pdf-btn"
+                  data-bs-toggle="tab" data-bs-target="#tab-pdf"
+                  type="button" role="tab">📄 Subir PDFs / Imágenes</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link fw-semibold" id="tab-urls-btn"
+                  data-bs-toggle="tab" data-bs-target="#tab-urls"
+                  type="button" role="tab">🔗 Pegar URLs del QR</button>
+        </li>
+      </ul>
+
+      <div class="tab-content p-4">
+        <!-- Tab 1: Subir PDFs -->
+        <div class="tab-pane fade show active" id="tab-pdf" role="tabpanel">
+          <p class="mb-3" style="font-size:.9rem; color:var(--ia-sub)">
+            El servidor lee el código QR de cada documento AFIP y decodifica los datos del
+            comprobante automáticamente. Soporta PDF, JPG, PNG y WebP.
+          </p>
+          <div class="cae-drop-zone" id="drop-zone">
+            <input type="file" id="file-input-pdf"
+                   accept=".pdf,image/jpeg,image/png,image/webp" multiple
+                   aria-label="Seleccionar archivos PDF, JPG, PNG o WebP">
+            <div style="font-size:2.5rem; line-height:1; margin-bottom:.5rem">📂</div>
+            <p class="fw-bold mb-1" style="color:var(--bs-body-color)">
+              Arrastrá los archivos aquí
+            </p>
+            <p class="mb-1" style="font-size:.85rem; color:var(--ia-sub)">
+              o hacé clic para seleccionarlos
+            </p>
+            <p id="drop-zone-sel" class="mb-0 fw-semibold" style="font-size:.82rem; color:var(--ia-accent)">
+              PDF, JPG, PNG o WebP — múltiples archivos
+            </p>
+          </div>
+          <div class="mt-3">
+            <button id="btn-upload-pdf" class="btn btn-primary fw-bold px-4" onclick="handlePdfUpload()">
+              Subir y extraer datos
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab 2: Pegar URLs -->
+        <div class="tab-pane fade" id="tab-urls" role="tabpanel">
+          <p class="mb-3" style="font-size:.9rem; color:var(--ia-sub)">
+            Pegá las URLs del código QR de las facturas (una por línea) o subí un archivo CSV/TXT.<br>
+            <strong>Origen:</strong> el texto del QR de cada factura AFIP empieza con
+            <code>https://www.afip.gob.ar/fe/qr/</code>
+          </p>
+          <label class="fw-semibold mb-1 d-block" for="qr-urls-input" style="font-size:.9rem">
+            URLs del QR (una por línea)
+          </label>
+          <textarea id="qr-urls-input" class="form-control font-monospace mb-3"
+                    style="min-height:130px; font-size:.82rem; resize:vertical"
+                    placeholder="https://www.afip.gob.ar/fe/qr/?p=eyJ2ZXIiOjEsImZlY2hhIjoiMjAyNS0wNC0xMCIsImN1aXQiO..."
+                    spellcheck="false"></textarea>
+          <p class="fw-semibold mb-1" style="font-size:.9rem">O subí un archivo CSV/TXT con las URLs</p>
+          <input type="file" id="csv-file-input" accept=".csv,.txt,text/plain,text/csv" class="form-control mb-1">
+          <p class="mb-3" style="font-size:.78rem; color:var(--ia-sub)">
+            El archivo puede tener otras columnas — el sistema extrae automáticamente las URLs de AFIP de cada línea.
+          </p>
+          <button class="btn btn-primary fw-bold px-4" onclick="handleUrlLookup()">
+            Consultar comprobantes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sección de resultados (se muestra cuando hay datos) -->
+    <div id="results-section" hidden>
+
+      <!-- Summary strip -->
+      <div class="cae-summary" id="results-summary"></div>
+
+      <!-- Export CSV -->
+      <div class="mb-3">
+        <button class="btn btn-sm btn-success fw-semibold" id="btn-export-csv">
+          ⬇ Exportar CSV
+        </button>
+      </div>
+
+      <!-- Sub-tabs: Resultados / Log -->
+      <ul class="nav nav-tabs" id="resultsTab" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active fw-semibold" id="rtab-table-btn"
+                  data-bs-toggle="tab" data-bs-target="#rtab-table"
+                  type="button" role="tab">📋 Resultados</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link fw-semibold" id="rtab-log-btn"
+                  data-bs-toggle="tab" data-bs-target="#rtab-log"
+                  type="button" role="tab">📝 Log de validación AFIP</button>
+        </li>
+      </ul>
+
+      <div class="tab-content border border-top-0 rounded-bottom">
+        <!-- Tabla de resultados -->
+        <div class="tab-pane fade show active p-3" id="rtab-table" role="tabpanel">
+          <div class="cae-table-wrap">
+            <table class="cae-table" id="afip-results-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Archivo / Origen</th>
+                  <th>CUIT Emisor</th>
+                  <th>Tipo</th>
+                  <th>Nro. Comprobante</th>
+                  <th>Fecha</th>
+                  <th>Importe</th>
+                  <th>Moneda</th>
+                  <th>CUIT Receptor</th>
+                  <th>CAE</th>
+                  <th>Estado AFIP</th>
+                  <th>Importe AFIP</th>
+                  <th>Diferencia</th>
+                  <th>Observaciones</th>
+                  <th>Ver</th>
+                </tr>
+              </thead>
+              <tbody id="results-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Log de validación -->
+        <div class="tab-pane fade p-3" id="rtab-log" role="tabpanel">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <p class="mb-0" style="font-size:.88rem; color:var(--ia-sub)">
+              Registro de cada comprobante enviado a AFIP/ARCA para validación.
+            </p>
+            <button class="btn btn-sm btn-outline-secondary" id="btn-download-log">
+              ⬇ Descargar log (.txt)
+            </button>
+          </div>
+          <ul class="afip-log-list" id="afip-log-body" aria-live="polite" aria-atomic="false"></ul>
+        </div>
+      </div>
+
+    </div><!-- /results-section -->
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+'use strict';
+
+// ── Overlay helpers ───────────────────────────────────────────────────────────
+var overlay   = document.getElementById('cae-overlay');
+var ovTitle   = document.getElementById('overlay-title');
+var ovSub     = document.getElementById('overlay-sub');
+var ovBar     = document.getElementById('overlay-bar');
+
+function showOverlay(title, sub, pct) {
+  if (ovTitle) ovTitle.textContent = title || 'Procesando…';
+  if (ovSub)   ovSub.textContent   = sub   || '';
+  if (ovBar)   ovBar.style.width   = (pct || 0) + '%';
+  if (overlay) { overlay.hidden = false; overlay.removeAttribute('aria-hidden'); }
+}
+function hideOverlay() {
+  if (overlay) { overlay.hidden = true; overlay.setAttribute('aria-hidden', 'true'); }
+}
+
+// ── Drop zone ─────────────────────────────────────────────────────────────────
+var dropZone  = document.getElementById('drop-zone');
+var fileInput = document.getElementById('file-input-pdf');
+var selLabel  = document.getElementById('drop-zone-sel');
+
+function updateDropLabel(files) {
+  if (!selLabel || !files) return;
+  selLabel.textContent = files.length === 1
+    ? '1 archivo seleccionado'
+    : files.length + ' archivos seleccionados';
+}
+
+if (fileInput) fileInput.addEventListener('change', function () { updateDropLabel(fileInput.files); });
+
+if (dropZone) {
+  dropZone.addEventListener('dragover', function (e) {
+    e.preventDefault(); dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', function (e) {
+    if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over');
+  });
+  dropZone.addEventListener('drop', function (e) {
+    e.preventDefault(); dropZone.classList.remove('drag-over');
+    if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+    try {
+      var dt = new DataTransfer();
+      Array.from(e.dataTransfer.files).forEach(function (f) { dt.items.add(f); });
+      fileInput.files = dt.files;
+    } catch (_) {}
+    updateDropLabel(fileInput.files);
+  });
+}
+
+// ── Rendering helpers ─────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s == null ? '—' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+// ── Render results table ──────────────────────────────────────────────────────
+var logBody    = document.getElementById('afip-log-body');
+var tbody      = document.getElementById('results-tbody');
+var summaryEl  = document.getElementById('results-summary');
+var resultsEl  = document.getElementById('results-section');
+
+function renderResults(results) {
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  if (logBody) logBody.innerHTML = '';
+
+  var okCount  = 0;
+  var errCount = 0;
+  var totalARS = 0;
+
+  results.forEach(function (r, i) {
+    var n  = i + 1;
+    var tr = document.createElement('tr');
+
+    if (r.error) {
+      errCount++;
+      var archivo = esc(r.archivo || r.input || '—');
+      tr.setAttribute('data-log-error', '1');
+      tr.setAttribute('data-log-file', r.archivo || r.input || '');
+      tr.setAttribute('data-log-msg', r.error || '');
+      tr.innerHTML =
+        '<td>' + n + '</td>' +
+        '<td style="font-size:.78rem"><code>' + archivo + '</code></td>' +
+        '<td colspan="8" class="err">' + esc(r.error) + '</td>' +
+        '<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>';
+    } else {
+      okCount++;
+      var imp = parseFloat(r.importe_raw || 0);
+      if (!isNaN(imp)) totalARS += imp;
+      var afipUrl = esc(r.afip_url || '');
+      tr.innerHTML =
+        '<td>' + n + '</td>' +
+        '<td style="font-size:.78rem"><code>' + esc(r.archivo || '—') + '</code></td>' +
+        '<td>' + esc(r.cuit_emisor) + '</td>' +
+        '<td class="tipo">' + esc(r.tipo_comprobante) + '</td>' +
+        '<td>' + esc(r.numero_completo) + '</td>' +
+        '<td>' + esc(r.fecha) + '</td>' +
+        '<td class="num" data-importe-raw="' + esc(r.importe_raw) + '">' + esc(r.importe) + '</td>' +
+        '<td>' + esc(r.moneda) + '</td>' +
+        '<td>' + esc(r.nro_doc_receptor) + '</td>' +
+        '<td class="mono">' + esc(r.cae) + '</td>' +
+        '<td class="cae-status-cell" data-afip-url="' + afipUrl + '">' +
+          '<span class="cae-badge cae-badge--loading">Verificando…</span>' +
+        '</td>' +
+        '<td class="importe-afip-cell num">—</td>' +
+        '<td class="diferencia-cell num">—</td>' +
+        '<td class="obs-cell obs-ok">—</td>' +
+        '<td>' +
+          (r.afip_url
+            ? '<a href="' + afipUrl + '" target="_blank" rel="noopener noreferrer" style="font-size:.78rem">Ver</a>'
+            : '—') +
+        '</td>';
+    }
+    tbody.appendChild(tr);
+  });
+
+  // Filas de error → agregar al log de inmediato
+  document.querySelectorAll('tr[data-log-error="1"]').forEach(function (row) {
+    addLogEntry(
+      row.getAttribute('data-log-file') || '—',
+      '— (sin URL AFIP)',
+      'proc_err',
+      row.getAttribute('data-log-msg') || 'Error desconocido'
+    );
+  });
+
+  // Resumen
+  if (summaryEl) {
+    summaryEl.innerHTML =
+      '<div class="cae-summary__item">Comprobantes OK: <span>' + okCount + '</span></div>' +
+      (errCount > 0
+        ? '<div class="cae-summary__item" style="color:var(--bs-danger)">Sin QR AFIP: <span>' + errCount + '</span></div>'
+        : '') +
+      (totalARS > 0
+        ? '<div class="cae-summary__item">Total: <span>$' + totalARS.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</span></div>'
+        : '');
+  }
+
+  if (resultsEl) resultsEl.hidden = false;
+
+  // Scroll suave a resultados
+  setTimeout(function () {
+    if (resultsEl) resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+
+  // Iniciar validación AFIP secuencial
+  startAfipValidation();
+}
+
+// ── Upload PDF handler ────────────────────────────────────────────────────────
+window.handlePdfUpload = function () {
+  var files = fileInput && fileInput.files;
+  if (!files || !files.length) { alert('Seleccioná al menos un archivo.'); return; }
+
+  showOverlay('Leyendo códigos QR…', 'El servidor está procesando los archivos.', 20);
+
+  var fd = new FormData();
+  Array.from(files).forEach(function (f) { fd.append('documents', f); });
+
+  fetch('/cae/upload-docs', { method: 'POST', body: fd })
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function (data) {
+      hideOverlay();
+      renderResults(data.results || []);
+    })
+    .catch(function (err) {
+      hideOverlay();
+      alert('Error al procesar los archivos: ' + err.message);
+    });
+};
+
+// ── URL lookup handler ────────────────────────────────────────────────────────
+window.handleUrlLookup = function () {
+  var textareaVal = (document.getElementById('qr-urls-input') || {}).value || '';
+  var csvFile = document.getElementById('csv-file-input');
+
+  if (!textareaVal.trim() && (!csvFile || !csvFile.files.length)) {
+    alert('Pegá al menos una URL o subí un archivo CSV/TXT.'); return;
+  }
+
+  showOverlay('Consultando comprobantes…', 'Decodificando URLs AFIP.', 40);
+
+  var fd = new FormData();
+  fd.append('qr_urls', textareaVal);
+  if (csvFile && csvFile.files.length) fd.append('csv_file', csvFile.files[0]);
+
+  fetch('/cae/lookup-urls', { method: 'POST', body: fd })
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function (data) {
+      hideOverlay();
+      renderResults(data.results || []);
+    })
+    .catch(function (err) {
+      hideOverlay();
+      alert('Error al consultar comprobantes: ' + err.message);
+    });
+};
+
+// ── AFIP sequential validation ────────────────────────────────────────────────
+var LABELS  = { valid:'✓ Válido en AFIP', invalid:'✗ No encontrado', unknown:'? Sin confirmar', error:'— Sin respuesta', proc_err:'✕ Sin QR AFIP' };
+var CLASSES = { valid:'cae-badge--valid', invalid:'cae-badge--invalid', unknown:'cae-badge--unknown', error:'cae-badge--error' };
+var ICONS   = { valid:'✓', invalid:'✗', unknown:'?', error:'—', proc_err:'✕' };
+var ICON_CLS= { valid:'afip-log-icon--ok', invalid:'afip-log-icon--err', unknown:'afip-log-icon--warn', error:'afip-log-icon--muted', proc_err:'afip-log-icon--err' };
+
+function addLogEntry(label, afipUrl, status, message) {
+  if (!logBody) return;
+  var li  = document.createElement('li');
+  li.className = 'afip-log-entry';
+  li.innerHTML =
+    '<span class="afip-log-icon ' + (ICON_CLS[status]||'afip-log-icon--muted') + '" aria-hidden="true">' +
+      (ICONS[status]||'—') +
+    '</span>' +
+    '<div class="afip-log-detail">' +
+      '<p class="afip-log-comp">' + esc(label) + '</p>' +
+      '<p class="afip-log-url"><span class="afip-log-lbl">URL AFIP:</span><code>' + esc(afipUrl) + '</code></p>' +
+      '<p class="afip-log-resp"><span class="afip-log-lbl">Respuesta:</span>' + esc(message || '—') + '</p>' +
+    '</div>';
+  logBody.appendChild(li);
+}
+
+function getRowLabel(cell) {
+  var tr = cell.closest ? cell.closest('tr') : null;
+  if (!tr) return '—';
+  var tds = tr.querySelectorAll('td');
+  for (var i = 1; i < tds.length; i++) {
+    var t = tds[i].textContent.trim();
+    if (/^Factura|^Nota|^Recibo/i.test(t)) {
+      return (t + ' ' + ((tds[i+1]||{}).textContent||'')).trim();
+    }
+  }
+  return tds[1] ? tds[1].textContent.trim() : '—';
+}
+
+function validateCell(cell) {
+  return new Promise(function (resolve) {
+    var afipUrl = cell.getAttribute('data-afip-url') || '';
+    if (!afipUrl) { resolve(); return; }
+
+    var tr    = cell.closest ? cell.closest('tr') : null;
+    var label = getRowLabel(cell);
+
+    var fd = new FormData();
+    fd.append('afip_url', afipUrl);
+
+    fetch('/cae/validate-url', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var status = data.status || 'error';
+
+        // Badge
+        var badge = cell.querySelector('.cae-badge');
+        if (badge) {
+          badge.className   = 'cae-badge ' + (CLASSES[status] || 'cae-badge--error');
+          badge.textContent = LABELS[status] || '—';
+          badge.title       = data.message || '';
+        }
+
+        if (tr) {
+          // Importe AFIP
+          var importeCell = tr.querySelector('.importe-afip-cell');
+          var difCell     = tr.querySelector('.diferencia-cell');
+          var obsCell     = tr.querySelector('.obs-cell');
+          var difFmt      = null;
+
+          if (importeCell && status === 'valid') {
+            var rawVal = parseFloat(data.importe_afip);
+            if (!isNaN(rawVal)) {
+              importeCell.textContent = '$ ' + rawVal.toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
+              importeCell.className   = 'importe-afip-cell num ia-match';
+              importeCell.title       = 'Importe registrado por AFIP al autorizar el CAE';
+            } else {
+              importeCell.textContent = 'N/D';
+              importeCell.className   = 'importe-afip-cell num ia-nd';
+            }
+          }
+
+          // Diferencia
+          if (difCell && status === 'valid') {
+            var dif = parseFloat(data.diferencia);
+            if (!isNaN(dif) && dif > 0) {
+              difFmt = dif.toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
+              difCell.textContent = '$ ' + difFmt;
+              difCell.className   = 'diferencia-cell num ia-dif-nonzero';
+              difCell.title       = 'Diferencia entre el importe del QR y el valor probable en pesos';
+            } else {
+              difCell.textContent = '$0,00';
+              difCell.className   = 'diferencia-cell num ia-dif-zero';
+            }
+          }
+
+          // Observaciones
+          if (obsCell) {
+            if (data.observacion) {
+              obsCell.textContent = '⚠ ' + data.observacion;
+              obsCell.className   = 'obs-cell obs-warn';
+              obsCell.title       = data.observacion;
+            } else if (status === 'valid') {
+              obsCell.textContent = 'Sin observaciones';
+              obsCell.className   = 'obs-cell obs-ok';
+            }
+          }
+        }
+
+        var logMsg = data.message || '';
+        if (difFmt) logMsg += ' — Diferencia: $' + difFmt;
+        addLogEntry(label, afipUrl, status, logMsg);
+      })
+      .catch(function () {
+        var badge = cell.querySelector('.cae-badge');
+        if (badge) { badge.className = 'cae-badge cae-badge--error'; badge.textContent = LABELS.error; }
+        addLogEntry(label, afipUrl, 'error', 'Error de red o sin respuesta del servidor');
+      })
+      .finally(resolve);
+  });
+}
+
+function startAfipValidation() {
+  var cells = document.querySelectorAll('.cae-status-cell[data-afip-url]');
+  if (!cells.length) return;
+
+  (function processNext(i) {
+    if (i >= cells.length) return;
+    validateCell(cells[i]).then(function () {
+      setTimeout(function () { processNext(i + 1); }, 600);
+    });
+  })(0);
+}
+
+// ── Export CSV ────────────────────────────────────────────────────────────────
+var btnExport = document.getElementById('btn-export-csv');
+if (btnExport) {
+  btnExport.addEventListener('click', function () {
+    var table = document.getElementById('afip-results-table');
+    if (!table) return;
+    var rows = [];
+    var ths = table.querySelectorAll('thead th');
+    var headers = [];
+    for (var i = 0; i < ths.length - 1; i++) headers.push('"' + ths[i].textContent.trim() + '"');
+    rows.push(headers.join(';'));
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      var tds = tr.querySelectorAll('td');
+      var cols = [];
+      for (var i = 0; i < tds.length - 1; i++) {
+        cols.push('"' + tds[i].textContent.trim().replace(/"/g,'""') + '"');
+      }
+      rows.push(cols.join(';'));
+    });
+    var blob = new Blob(['\uFEFF' + rows.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'comprobantes_afip.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  });
+}
+
+// ── Download log ──────────────────────────────────────────────────────────────
+var btnLog = document.getElementById('btn-download-log');
+if (btnLog) {
+  btnLog.addEventListener('click', function () {
+    var items = document.querySelectorAll('#afip-log-body .afip-log-entry');
+    if (!items.length) { alert('El log está vacío — esperá a que termine la validación.'); return; }
+    var lines = ['Log de validación AFIP — ' + new Date().toLocaleString('es-AR'), ''];
+    items.forEach(function (li) {
+      var comp = li.querySelector('.afip-log-comp');
+      var url  = li.querySelector('.afip-log-url code');
+      var resp = li.querySelector('.afip-log-resp');
+      var icon = li.querySelector('.afip-log-icon');
+      lines.push('[' + (icon?icon.textContent.trim():'?') + '] ' + (comp?comp.textContent.trim():'—'));
+      lines.push('  URL:       ' + (url?url.textContent.trim():'—'));
+      lines.push('  Respuesta: ' + (resp?resp.textContent.replace(/^Respuesta:/i,'').trim():'—'));
+      lines.push('');
+    });
+    var blob = new Blob([lines.join('\r\n')], {type:'text/plain;charset=utf-8;'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'log_validacion_afip.txt';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  });
+}
+
+})();
+</script>
+{% endblock %}
