@@ -219,9 +219,62 @@ def decode_multiple(input_text: str) -> list[dict]:
 
 # ─── QR reading from files ────────────────────────────────────────────────────
 
+def _try_decode_image(img_bgr, detector) -> Optional[str]:
+    """
+    Try multiple preprocessing strategies to decode a QR code from a BGR image.
+    Returns the decoded string or None.
+    """
+    import cv2
+    import numpy as np
+
+    candidates = [img_bgr]
+
+    # 2x upscale — helps with small QR codes
+    h, w = img_bgr.shape[:2]
+    candidates.append(cv2.resize(img_bgr, (w * 2, h * 2), interpolation=cv2.INTER_CUBIC))
+
+    gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+
+    # Grayscale variants
+    _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    adaptive = cv2.adaptiveThreshold(
+        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+    )
+    gray_2x = cv2.resize(gray, (w * 2, h * 2), interpolation=cv2.INTER_CUBIC)
+    otsu_2x = cv2.resize(otsu, (w * 2, h * 2), interpolation=cv2.INTER_NEAREST)
+
+    gray_candidates = [gray, otsu, adaptive, gray_2x, otsu_2x]
+
+    # pyzbar first — significantly more robust than OpenCV's built-in detector
+    try:
+        from pyzbar.pyzbar import decode as pyzbar_decode
+        for candidate in candidates + [gray, otsu, adaptive, gray_2x, otsu_2x]:
+            results = pyzbar_decode(candidate)
+            for r in results:
+                if r.type == "QRCODE" and r.data:
+                    return r.data.decode("utf-8", errors="replace")
+    except ImportError:
+        pass
+    except Exception:
+        pass
+
+    # OpenCV fallback
+    for candidate in candidates:
+        data, _, _ = detector.detectAndDecode(candidate)
+        if data:
+            return data
+
+    for candidate in gray_candidates:
+        data, _, _ = detector.detectAndDecode(candidate)
+        if data:
+            return data
+
+    return None
+
+
 def read_qr_from_image_bytes(image_bytes: bytes, mime_type: str) -> dict:
     """
-    Read a QR code from image/PDF bytes using OpenCV.
+    Read a QR code from image/PDF bytes using pyzbar (primary) and OpenCV (fallback).
     For PDFs, converts pages to images first using pdf2image.
 
     Returns: {"payload": str|None, "error": str|None, "source": str}
@@ -235,7 +288,7 @@ def read_qr_from_image_bytes(image_bytes: bytes, mime_type: str) -> dict:
         try:
             from pdf2image import convert_from_bytes
             pil_images = convert_from_bytes(
-                image_bytes, dpi=150, first_page=1, last_page=5,
+                image_bytes, dpi=200, first_page=1, last_page=5,
             )
             for pil_img in pil_images:
                 rgb = np.array(pil_img.convert("RGB"))
@@ -251,15 +304,8 @@ def read_qr_from_image_bytes(image_bytes: bytes, mime_type: str) -> dict:
 
     detector = cv2.QRCodeDetector()
     for img in images_bgr:
-        data, _, _ = detector.detectAndDecode(img)
-        if data:
-            return {"payload": data, "error": None, "source": "cv2_qr"}
+        payload = _try_decode_image(img, detector)
+        if payload:
+            return {"payload": payload, "error": None, "source": "qr_decoder"}
 
-        # Try with grayscale + adaptive threshold for scanned documents
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        data, _, _ = detector.detectAndDecode(thresh)
-        if data:
-            return {"payload": data, "error": None, "source": "cv2_qr_thresh"}
-
-    return {"payload": None, "error": "No se encontró código QR en el archivo", "source": "cv2_qr"}
+    return {"payload": None, "error": "No se encontró código QR en el archivo", "source": "qr_decoder"}
