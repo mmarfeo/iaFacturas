@@ -3,25 +3,164 @@
 
 {% block head %}
 <style>
-/* ── Layout ──────────────────────────────────────────────── */
-.cae-page { min-height: 100vh; background: var(--bs-body-bg); }
-.cae-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 20px 60px; }
+/* ══════════════════════════════════════════════════════════════
+   LAYOUT
+══════════════════════════════════════════════════════════════ */
+.cae-page  { min-height: 100vh; background: var(--bs-body-bg); }
+.cae-wrap  { max-width: 1200px; margin: 0 auto; padding: 40px 20px 60px; }
 
-/* ── Drop zone ────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   PIPELINE TRACK
+══════════════════════════════════════════════════════════════ */
+.pipeline-track {
+  display: flex; align-items: center; gap: 0;
+  margin: 1.5rem 0 1.75rem;
+  overflow-x: auto; padding-bottom: .5rem;
+}
+
+/* ── Task node ─────────────────────────────────────────────── */
+.task-node {
+  flex: 0 0 190px; min-width: 160px;
+  border: 2px solid var(--bs-border-color);
+  border-radius: 14px; padding: 1rem .9rem .8rem;
+  background: var(--bs-body-bg);
+  transition: border-color .25s, box-shadow .25s, opacity .25s;
+  position: relative; cursor: default;
+}
+.task-node--active   { border-color: var(--ia-accent); box-shadow: 0 0 0 3px color-mix(in srgb,var(--ia-accent) 15%,transparent); }
+.task-node--inactive { opacity: .45; }
+.task-node--running  { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59,130,246,.2); animation: nodeGlow 1.4s ease-in-out infinite; }
+.task-node--done     { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.15); }
+.task-node--error    { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
+
+@keyframes nodeGlow {
+  0%,100% { box-shadow: 0 0 0 4px rgba(59,130,246,.15); }
+  50%      { box-shadow: 0 0 0 8px rgba(59,130,246,.35); }
+}
+
+.task-node__icon  { font-size: 1.9rem; line-height: 1; margin-bottom: .35rem; }
+.task-node__title { font-weight: 700; font-size: .92rem; margin-bottom: .15rem; }
+.task-node__desc  { font-size: .75rem; color: var(--bs-secondary-color); line-height: 1.35; margin-bottom: .6rem; min-height: 2em; }
+
+/* Status area inside node */
+.task-node__status {
+  font-size: .75rem; font-weight: 600; min-height: 1.4rem;
+  display: flex; align-items: center; gap: .35rem;
+}
+.status-icon { width: 1.1rem; height: 1.1rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .65rem; flex-shrink: 0; }
+.status-idle    { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
+.status-running { background: #dbeafe; color: #1d4ed8; }
+.status-done    { background: #d1fae5; color: #065f46; }
+.status-error   { background: #fee2e2; color: #991b1b; }
+.status-skip    { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); font-style: italic; }
+[data-bs-theme="dark"] .status-running { background: #1e3a8a; color: #93c5fd; }
+[data-bs-theme="dark"] .status-done    { background: #065f46; color: #6ee7b7; }
+[data-bs-theme="dark"] .status-error   { background: #7f1d1d; color: #fca5a5; }
+
+/* Toggle switch */
+.task-node__toggle-wrap { display: flex; align-items: center; justify-content: flex-end; margin-top: .5rem; }
+.task-toggle {
+  position: relative; width: 36px; height: 20px; cursor: pointer;
+}
+.task-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.task-toggle__track {
+  position: absolute; inset: 0; background: var(--bs-secondary-bg);
+  border-radius: 20px; border: 1px solid var(--bs-border-color);
+  transition: background .2s;
+}
+.task-toggle input:checked + .task-toggle__track { background: var(--ia-accent); border-color: var(--ia-accent); }
+.task-toggle__thumb {
+  position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; transition: transform .2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.task-toggle input:checked ~ .task-toggle__thumb { transform: translateX(16px); }
+
+/* ── Connector (arrow between nodes) ──────────────────────── */
+.pipeline-conn {
+  flex: 1; min-width: 40px; max-width: 90px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; height: 40px;
+}
+.pipeline-conn__line {
+  width: 100%; height: 3px; position: relative; overflow: hidden;
+  background: var(--bs-border-color); border-radius: 2px;
+}
+.pipeline-conn__line::after {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 40%; height: 100%;
+  background: linear-gradient(90deg, transparent, var(--ia-accent), transparent);
+  border-radius: 2px;
+  opacity: 0; transition: opacity .3s;
+}
+.pipeline-conn--active .pipeline-conn__line { background: color-mix(in srgb,var(--ia-accent) 40%,var(--bs-border-color)); }
+.pipeline-conn--active .pipeline-conn__line::after { opacity: 1; animation: flowRight 1.2s linear infinite; }
+
+.pipeline-conn__arrow {
+  position: absolute; right: -1px;
+  width: 0; height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 10px solid var(--bs-border-color);
+  transition: border-left-color .3s;
+}
+.pipeline-conn--active .pipeline-conn__arrow { border-left-color: var(--ia-accent); }
+
+/* Animated dots */
+.pipeline-dots {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  overflow: hidden; pointer-events: none;
+}
+.pipeline-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ia-accent); flex-shrink: 0;
+  opacity: 0; position: absolute;
+}
+.pipeline-conn--active .pipeline-dot { opacity: 1; }
+.pipeline-dot:nth-child(1) { animation: dotSlide 1.2s linear infinite 0s; }
+.pipeline-dot:nth-child(2) { animation: dotSlide 1.2s linear infinite .4s; }
+.pipeline-dot:nth-child(3) { animation: dotSlide 1.2s linear infinite .8s; }
+
+@keyframes dotSlide {
+  0%   { left: -6px; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { left: calc(100% + 6px); opacity: 0; }
+}
+@keyframes flowRight {
+  0%   { left: -40%; }
+  100% { left: 100%; }
+}
+
+/* ── Spinner mini ──────────────────────────────────────────── */
+.spin {
+  display: inline-block; width: .75rem; height: .75rem;
+  border: 2px solid currentColor; border-top-color: transparent;
+  border-radius: 50%; animation: spin360 .7s linear infinite; vertical-align: middle;
+}
+@keyframes spin360 { to { transform: rotate(360deg); } }
+
+/* ══════════════════════════════════════════════════════════════
+   INPUT AREA (below pipeline)
+══════════════════════════════════════════════════════════════ */
 .cae-drop-zone {
-  border: 2px dashed var(--bs-border-color);
-  border-radius: 12px; padding: 2.5rem 1.5rem; text-align: center;
+  border: 2px dashed var(--bs-border-color); border-radius: 12px;
+  padding: 2rem 1.5rem; text-align: center;
   background: var(--bs-secondary-bg); cursor: pointer;
   transition: border-color .2s, background .2s; position: relative;
 }
 .cae-drop-zone:hover, .cae-drop-zone.drag-over {
-  border-color: var(--ia-accent); background: color-mix(in srgb, var(--ia-accent) 6%, transparent);
+  border-color: var(--ia-accent);
+  background: color-mix(in srgb,var(--ia-accent) 6%,transparent);
 }
 .cae-drop-zone input[type="file"] {
   position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
 }
 
-/* ── Results table ────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   RESULTS TABLE
+══════════════════════════════════════════════════════════════ */
 .cae-table-wrap { overflow-x: auto; margin-top: .5rem; }
 .cae-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
 .cae-table th {
@@ -29,105 +168,71 @@
   text-align: left; white-space: nowrap; position: sticky; top: 0;
 }
 [data-bs-theme="dark"] .cae-table th { background: #0f2033; }
-.cae-table td {
-  padding: .4rem .6rem; border-bottom: 1px solid var(--bs-border-color);
-  vertical-align: top;
-}
+.cae-table td { padding: .4rem .6rem; border-bottom: 1px solid var(--bs-border-color); vertical-align: top; }
 .cae-table tr:hover td { background: var(--bs-tertiary-bg); }
-.cae-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.cae-table td.num  { text-align: right; font-variant-numeric: tabular-nums; }
 .cae-table td.mono { font-family: monospace; font-size: .8rem; }
 .cae-table td.tipo { font-weight: 600; }
-.cae-table td.err { color: var(--bs-danger); font-style: italic; }
+.cae-table td.err  { color: var(--bs-danger); font-style: italic; }
 
-/* ── CAE status badges ────────────────────────────────────── */
-.cae-badge {
+/* ── Badges ────────────────────────────────────────────────── */
+.cae-badge, .apoc-badge {
   display: inline-block; padding: .15rem .5rem; border-radius: 4px;
   font-size: .75rem; font-weight: 600; white-space: nowrap;
 }
-.cae-badge--loading  { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
+.cae-badge--loading, .apoc-badge--loading { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
 .cae-badge--valid    { background: #d1fae5; color: #065f46; }
 .cae-badge--invalid  { background: #fee2e2; color: #991b1b; }
 .cae-badge--unknown  { background: #fef3c7; color: #92400e; }
-.cae-badge--error    { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
+.cae-badge--error, .apoc-badge--error { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
+.cae-badge--skip, .apoc-badge--skip   { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); font-style: italic; }
+.apoc-badge--no  { background: #d1fae5; color: #065f46; }
+.apoc-badge--yes { background: #fee2e2; color: #991b1b; }
 [data-bs-theme="dark"] .cae-badge--valid   { background: #065f46; color: #a7f3d0; }
 [data-bs-theme="dark"] .cae-badge--invalid { background: #991b1b; color: #fecaca; }
 [data-bs-theme="dark"] .cae-badge--unknown { background: #92400e; color: #fde68a; }
+[data-bs-theme="dark"] .apoc-badge--no  { background: #065f46; color: #a7f3d0; }
+[data-bs-theme="dark"] .apoc-badge--yes { background: #991b1b; color: #fecaca; }
 
-/* ── Importe AFIP ─────────────────────────────────────────── */
-.ia-match    { color: #065f46; font-weight: 600; }
-.ia-nd       { color: var(--bs-secondary-color); font-style: italic; font-size: .82rem; }
-.ia-mismatch { color: #991b1b; font-weight: 700; background: #fee2e2;
-               padding: .1rem .35rem; border-radius: 3px; cursor: help; }
+/* ── Importe / Dif / Obs ───────────────────────────────────── */
+.ia-match       { color: #065f46; font-weight: 600; }
+.ia-nd          { color: var(--bs-secondary-color); font-style: italic; font-size: .82rem; }
 .ia-dif-zero    { color: var(--bs-secondary-color); font-size: .82rem; }
-.ia-dif-nonzero { color: #991b1b; font-weight: 700; background: #fee2e2;
-                  padding: .1rem .35rem; border-radius: 3px; }
-[data-bs-theme="dark"] .ia-match    { color: #6ee7b7; }
-[data-bs-theme="dark"] .ia-mismatch { background: #7f1d1d; color: #fca5a5; }
-[data-bs-theme="dark"] .ia-dif-nonzero { background: #7f1d1d; color: #fca5a5; }
-
-/* ── Observaciones ────────────────────────────────────────── */
+.ia-dif-nonzero { color: #991b1b; font-weight: 700; background: #fee2e2; padding: .1rem .35rem; border-radius: 3px; }
 .obs-ok   { color: var(--bs-secondary-color); }
 .obs-warn { background: #fffbeb; color: #92400e; font-weight: 600;
             border-left: 3px solid #f59e0b; padding: .25rem .45rem !important;
             cursor: help; white-space: normal; line-height: 1.35; max-width: 260px; }
-[data-bs-theme="dark"] .obs-warn { background: #44330a; color: #fde68a; }
+[data-bs-theme="dark"] .ia-match       { color: #6ee7b7; }
+[data-bs-theme="dark"] .ia-dif-nonzero { background: #7f1d1d; color: #fca5a5; }
+[data-bs-theme="dark"] .obs-warn       { background: #44330a; color: #fde68a; }
 
-/* ── Log de validación ────────────────────────────────────── */
+/* ── Log validación ────────────────────────────────────────── */
 .afip-log-list { list-style: none; padding: 0; margin: 0; font-size: .82rem; }
-.afip-log-entry {
-  display: flex; gap: .6rem; align-items: flex-start;
-  padding: .45rem .5rem; border-bottom: 1px solid var(--bs-border-color);
-}
+.afip-log-entry { display: flex; gap: .6rem; align-items: flex-start; padding: .45rem .5rem; border-bottom: 1px solid var(--bs-border-color); }
 .afip-log-entry:last-child { border-bottom: none; }
-.afip-log-icon {
-  flex-shrink: 0; width: 1.4rem; height: 1.4rem; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: .75rem;
-}
-.afip-log-icon--ok      { background: #d1fae5; color: #065f46; }
-.afip-log-icon--err     { background: #fee2e2; color: #991b1b; }
-.afip-log-icon--warn    { background: #fef3c7; color: #92400e; }
-.afip-log-icon--muted   { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
-.afip-log-icon--pending { background: #e0e7ff; color: #3730a3; }
+.afip-log-icon { flex-shrink: 0; width: 1.4rem; height: 1.4rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .75rem; }
+.afip-log-icon--ok     { background: #d1fae5; color: #065f46; }
+.afip-log-icon--err    { background: #fee2e2; color: #991b1b; }
+.afip-log-icon--warn   { background: #fef3c7; color: #92400e; }
+.afip-log-icon--muted  { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
 .afip-log-detail { flex: 1; min-width: 0; }
-.afip-log-comp  { margin: 0 0 .1rem; font-weight: 600; color: var(--bs-body-color); }
-.afip-log-url   { margin: 0 0 .1rem; color: var(--bs-secondary-color); word-break: break-all; }
+.afip-log-comp { margin: 0 0 .1rem; font-weight: 600; }
+.afip-log-url  { margin: 0 0 .1rem; color: var(--bs-secondary-color); word-break: break-all; }
 .afip-log-url code { font-size: .78rem; }
-.afip-log-resp  { margin: 0; color: var(--bs-body-color); }
-.afip-log-lbl   { color: var(--bs-secondary-color); margin-right: .25rem; }
+.afip-log-resp { margin: 0; }
+.afip-log-lbl  { color: var(--bs-secondary-color); margin-right: .25rem; }
 
-/* ── Overlay ──────────────────────────────────────────────── */
-.cae-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,.5);
-  display: flex; align-items: center; justify-content: center; z-index: 9999;
-}
-.cae-overlay__box {
-  background: var(--bs-body-bg); border-radius: 14px;
-  padding: 2rem 2.5rem; text-align: center; max-width: 360px; width: 90%;
-  box-shadow: 0 20px 60px rgba(0,0,0,.3);
-}
-.cae-overlay__title { font-weight: 700; font-size: 1.1rem; margin-bottom: .5rem; }
-.cae-overlay__sub   { font-size: .88rem; color: var(--bs-secondary-color); margin: 0; }
-
-/* ── Apócrifo badge ───────────────────────────────────────── */
-.apoc-badge {
-  display: inline-block; padding: .15rem .5rem; border-radius: 4px;
-  font-size: .75rem; font-weight: 600; white-space: nowrap;
-}
-.apoc-badge--loading  { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
-.apoc-badge--no       { background: #d1fae5; color: #065f46; }
-.apoc-badge--yes      { background: #fee2e2; color: #991b1b; }
-.apoc-badge--error    { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
-[data-bs-theme="dark"] .apoc-badge--no  { background: #065f46; color: #a7f3d0; }
-[data-bs-theme="dark"] .apoc-badge--yes { background: #991b1b; color: #fecaca; }
-
-/* ── Summary strip ────────────────────────────────────────── */
-.cae-summary {
-  display: flex; flex-wrap: wrap; gap: 1.25rem;
-  margin-bottom: .75rem; font-size: .9rem;
-}
+/* ── Summary strip ─────────────────────────────────────────── */
+.cae-summary { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: .75rem; font-size: .9rem; }
 .cae-summary__item { font-weight: 700; }
 .cae-summary__item span { font-weight: 400; margin-left: .3rem; color: var(--bs-secondary-color); }
+
+/* ── Overlay ────────────────────────────────────────────────── */
+.cae-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+.cae-overlay__box { background: var(--bs-body-bg); border-radius: 14px; padding: 2rem 2.5rem; text-align: center; max-width: 360px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.cae-overlay__title { font-weight: 700; font-size: 1.1rem; margin-bottom: .5rem; }
+.cae-overlay__sub   { font-size: .88rem; color: var(--bs-secondary-color); margin: 0; }
 </style>
 {% endblock %}
 
@@ -137,10 +242,9 @@
   <div class="cae-overlay__box" role="status">
     <div class="spinner-border text-primary mb-3" style="width:2.5rem;height:2.5rem"></div>
     <p class="cae-overlay__title" id="overlay-title">Procesando…</p>
-    <p class="cae-overlay__sub" id="overlay-sub">Esto puede tardar unos segundos.</p>
+    <p class="cae-overlay__sub"  id="overlay-sub">Esto puede tardar unos segundos.</p>
     <div class="progress mt-3" style="height:6px">
-      <div id="overlay-bar" class="progress-bar progress-bar-striped progress-bar-animated"
-           style="width:0%" role="progressbar"></div>
+      <div id="overlay-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%" role="progressbar"></div>
     </div>
   </div>
 </div>
@@ -150,87 +254,175 @@
 
     <!-- Header -->
     <div class="mb-4">
-      <a href="/app/dashboard"
-         class="text-decoration-none fw-medium d-inline-block mb-3"
-         style="font-size:13px; color:var(--ia-sub)">← Volver al dashboard</a>
-      <h1 class="fw-bold mb-1" style="font-size:26px; letter-spacing:-0.5px">
+      <a href="/app/dashboard" class="text-decoration-none fw-medium d-inline-block mb-3"
+         style="font-size:13px;color:var(--ia-sub)">← Volver al dashboard</a>
+      <h1 class="fw-bold mb-1" style="font-size:26px;letter-spacing:-0.5px">
         🔍 Consultar CAE / Facturas AFIP
       </h1>
-      <p class="mb-0" style="font-size:14px; color:var(--ia-sub)">
-        Dos formas de consultar comprobantes electrónicos AFIP: <strong>subí los PDFs</strong> para
-        que el servidor lea el QR automáticamente, o <strong>pegá las URLs del QR</strong> para
-        obtener los datos sin subir archivos.
+      <p class="mb-0" style="font-size:14px;color:var(--ia-sub)">
+        Configurá el proceso, seleccioná los archivos y ejecutá las tareas que necesitás.
       </p>
     </div>
 
-    <!-- Tabs de entrada -->
-    <div class="card border-0 shadow-sm rounded-3 mb-4" style="overflow:hidden">
-      <ul class="nav nav-tabs px-3 pt-3" id="inputTab" role="tablist" style="border-bottom: 1px solid var(--bs-border-color)">
-        <li class="nav-item" role="presentation">
-          <button class="nav-link active fw-semibold" id="tab-pdf-btn"
-                  data-bs-toggle="tab" data-bs-target="#tab-pdf"
-                  type="button" role="tab">📄 Subir PDFs / Imágenes</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link fw-semibold" id="tab-urls-btn"
-                  data-bs-toggle="tab" data-bs-target="#tab-urls"
-                  type="button" role="tab">🔗 Pegar URLs del QR</button>
-        </li>
-      </ul>
+    <!-- ═══════════════════════════════════════════════════════
+         PIPELINE CONFIGURATOR
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4 p-4">
 
-      <div class="tab-content p-4">
-        <!-- Tab 1: Subir PDFs -->
-        <div class="tab-pane fade show active" id="tab-pdf" role="tabpanel">
-          <p class="mb-3" style="font-size:.9rem; color:var(--ia-sub)">
-            El servidor lee el código QR de cada documento AFIP y decodifica los datos del
-            comprobante automáticamente. Soporta PDF, JPG, PNG y WebP.
-          </p>
-          <div class="cae-drop-zone" id="drop-zone">
-            <input type="file" id="file-input-pdf"
-                   accept=".pdf,image/jpeg,image/png,image/webp" multiple
-                   aria-label="Seleccionar archivos PDF, JPG, PNG o WebP">
-            <div style="font-size:2.5rem; line-height:1; margin-bottom:.5rem">📂</div>
-            <p class="fw-bold mb-1" style="color:var(--bs-body-color)">
-              Arrastrá los archivos aquí
-            </p>
-            <p class="mb-1" style="font-size:.85rem; color:var(--ia-sub)">
-              o hacé clic para seleccionarlos
-            </p>
-            <p id="drop-zone-sel" class="mb-0 fw-semibold" style="font-size:.82rem; color:var(--ia-accent)">
-              PDF, JPG, PNG o WebP — múltiples archivos
-            </p>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span style="font-size:1.1rem">⚙️</span>
+        <h2 class="fw-bold mb-0" style="font-size:1rem">Configurar proceso</h2>
+      </div>
+      <p class="mb-0" style="font-size:.83rem;color:var(--ia-sub)">
+        Activá o desactivá cada tarea. Las flechas animadas indican el flujo activo.
+      </p>
+
+      <!-- Pipeline visual -->
+      <div class="pipeline-track">
+
+        <!-- ── Tarea 1: Extraer QR ── -->
+        <div class="task-node task-node--active" id="node-extract">
+          <div class="task-node__icon">📄</div>
+          <div class="task-node__title">Extraer QR</div>
+          <div class="task-node__desc">Lee el código QR del PDF y extrae los datos del comprobante</div>
+          <div class="task-node__status" id="status-extract">
+            <span class="status-icon status-idle">○</span>
+            <span id="status-extract-text">Pendiente</span>
           </div>
-          <div class="mt-3">
-            <button id="btn-upload-pdf" class="btn btn-primary fw-bold px-4" onclick="handlePdfUpload()">
-              Subir y extraer datos
-            </button>
+          <div class="task-node__toggle-wrap">
+            <label class="task-toggle" title="Activar/desactivar">
+              <input type="checkbox" id="toggle-extract" checked>
+              <span class="task-toggle__track"></span>
+              <span class="task-toggle__thumb"></span>
+            </label>
           </div>
         </div>
 
-        <!-- Tab 2: Pegar URLs -->
-        <div class="tab-pane fade" id="tab-urls" role="tabpanel">
-          <p class="fw-semibold mb-1" style="font-size:.9rem">O subí un archivo CSV/TXT con las URLs</p>
-          <input type="file" id="csv-file-input" accept=".csv,.txt,text/plain,text/csv" class="form-control mb-1">
-          <p class="mb-3" style="font-size:.78rem; color:var(--ia-sub)">
-            El archivo puede tener otras columnas — el sistema extrae automáticamente las URLs de AFIP de cada línea.
+        <!-- Conector 1→2 -->
+        <div class="pipeline-conn pipeline-conn--active" id="conn-12">
+          <div class="pipeline-conn__line">
+            <div class="pipeline-dots">
+              <div class="pipeline-dot"></div>
+              <div class="pipeline-dot"></div>
+              <div class="pipeline-dot"></div>
+            </div>
+          </div>
+          <div class="pipeline-conn__arrow"></div>
+        </div>
+
+        <!-- ── Tarea 2: Validar CAE ── -->
+        <div class="task-node task-node--active" id="node-cae">
+          <div class="task-node__icon">✅</div>
+          <div class="task-node__title">Validar CAE</div>
+          <div class="task-node__desc">Verifica el CAE contra AFIP/ARCA en línea</div>
+          <div class="task-node__status" id="status-cae">
+            <span class="status-icon status-idle">○</span>
+            <span id="status-cae-text">Pendiente</span>
+          </div>
+          <div class="task-node__toggle-wrap">
+            <label class="task-toggle" title="Activar/desactivar">
+              <input type="checkbox" id="toggle-cae" checked>
+              <span class="task-toggle__track"></span>
+              <span class="task-toggle__thumb"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Conector 2→3 -->
+        <div class="pipeline-conn pipeline-conn--active" id="conn-23">
+          <div class="pipeline-conn__line">
+            <div class="pipeline-dots">
+              <div class="pipeline-dot"></div>
+              <div class="pipeline-dot"></div>
+              <div class="pipeline-dot"></div>
+            </div>
+          </div>
+          <div class="pipeline-conn__arrow"></div>
+        </div>
+
+        <!-- ── Tarea 3: Apócrifos ── -->
+        <div class="task-node task-node--active" id="node-apoc">
+          <div class="task-node__icon">🔍</div>
+          <div class="task-node__title">Base Apócrifos</div>
+          <div class="task-node__desc">Consulta si el CUIT figura en la base APOC de ARCA</div>
+          <div class="task-node__status" id="status-apoc">
+            <span class="status-icon status-idle">○</span>
+            <span id="status-apoc-text">Pendiente</span>
+          </div>
+          <div class="task-node__toggle-wrap">
+            <label class="task-toggle" title="Activar/desactivar">
+              <input type="checkbox" id="toggle-apoc" checked>
+              <span class="task-toggle__track"></span>
+              <span class="task-toggle__thumb"></span>
+            </label>
+          </div>
+        </div>
+
+      </div><!-- /pipeline-track -->
+
+      <!-- ── Input area (se adapta según configuración) ── -->
+      <div id="input-pdf-area">
+        <p class="mb-2" style="font-size:.85rem;color:var(--ia-sub)">
+          Arrastrá los PDFs o imágenes, o hacé clic para seleccionarlos.
+          Soporta PDF, JPG, PNG y WebP.
+        </p>
+        <div class="cae-drop-zone" id="drop-zone">
+          <input type="file" id="file-input-pdf"
+                 accept=".pdf,image/jpeg,image/png,image/webp" multiple
+                 aria-label="Seleccionar archivos PDF, JPG, PNG o WebP">
+          <div style="font-size:2.2rem;line-height:1;margin-bottom:.4rem">📂</div>
+          <p class="fw-bold mb-1" style="color:var(--bs-body-color)">Arrastrá los archivos aquí</p>
+          <p class="mb-1" style="font-size:.83rem;color:var(--ia-sub)">o hacé clic para seleccionarlos</p>
+          <p id="drop-zone-sel" class="mb-0 fw-semibold" style="font-size:.8rem;color:var(--ia-accent)">
+            PDF, JPG, PNG o WebP — múltiples archivos
           </p>
-          <button class="btn btn-primary fw-bold px-4" onclick="handleUrlLookup()">
-            Consultar comprobantes
-          </button>
         </div>
       </div>
-    </div>
 
-    <!-- Sección de resultados (se muestra cuando hay datos) -->
+      <div id="input-url-area" hidden>
+        <p class="fw-semibold mb-1" style="font-size:.88rem">Subí un archivo CSV/TXT con las URLs del QR</p>
+        <input type="file" id="csv-file-input" accept=".csv,.txt,text/plain,text/csv" class="form-control mb-2">
+        <p class="mb-3" style="font-size:.78rem;color:var(--ia-sub)">
+          El sistema extrae automáticamente las URLs de AFIP de cada línea.
+        </p>
+        <p class="fw-semibold mb-1" style="font-size:.88rem">O pegá las URLs (una por línea)</p>
+        <textarea id="qr-urls-input" class="form-control font-monospace"
+                  style="min-height:100px;font-size:.8rem;resize:vertical"
+                  placeholder="https://www.afip.gob.ar/fe/qr/?p=..."
+                  spellcheck="false"></textarea>
+      </div>
+
+      <!-- Botón iniciar -->
+      <div class="mt-3 d-flex align-items-center gap-3 flex-wrap">
+        <button id="btn-start-pipeline" class="btn btn-primary fw-bold px-4">
+          ▶ Comenzar
+        </button>
+        <div id="pipeline-progress-wrap" hidden style="flex:1;min-width:180px">
+          <div class="d-flex justify-content-between mb-1" style="font-size:.78rem;color:var(--ia-sub)">
+            <span id="pipeline-progress-label">Procesando…</span>
+            <span id="pipeline-progress-pct">0%</span>
+          </div>
+          <div class="progress" style="height:5px">
+            <div id="pipeline-progress-bar"
+                 class="progress-bar bg-primary progress-bar-striped progress-bar-animated"
+                 style="width:0%" role="progressbar"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /card pipeline -->
+
+    <!-- ═══════════════════════════════════════════════════════
+         RESULTS SECTION
+    ═══════════════════════════════════════════════════════════ -->
     <div id="results-section" hidden>
 
-      <!-- Summary strip -->
       <div class="cae-summary" id="results-summary"></div>
 
-      <!-- Barra de progreso + botón Export en una sola fila -->
+      <!-- Barra validación AFIP + Export -->
       <div class="d-flex align-items-center gap-3 mb-3">
         <div id="validation-progress-wrap" style="flex:0 0 90%" hidden>
-          <div class="d-flex justify-content-between mb-1" style="font-size:.82rem; color:var(--ia-sub)">
+          <div class="d-flex justify-content-between mb-1" style="font-size:.82rem;color:var(--ia-sub)">
             <span id="validation-progress-label">Validando en AFIP…</span>
             <span id="validation-progress-pct">0%</span>
           </div>
@@ -240,29 +432,26 @@
                  style="width:0%" role="progressbar"></div>
           </div>
         </div>
-        <div style="flex:0 0 auto; margin-left:auto">
+        <div style="flex:0 0 auto;margin-left:auto">
           <button class="btn btn-sm btn-success fw-semibold" id="btn-export-csv" disabled>
             ⬇ Exportar CSV
           </button>
         </div>
       </div>
 
-      <!-- Sub-tabs: Resultados / Log -->
+      <!-- Sub-tabs: Tabla / Log -->
       <ul class="nav nav-tabs" id="resultsTab" role="tablist">
         <li class="nav-item" role="presentation">
-          <button class="nav-link active fw-semibold" id="rtab-table-btn"
-                  data-bs-toggle="tab" data-bs-target="#rtab-table"
-                  type="button" role="tab">📋 Resultados</button>
+          <button class="nav-link active fw-semibold" data-bs-toggle="tab"
+                  data-bs-target="#rtab-table" type="button" role="tab">📋 Resultados</button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link fw-semibold" id="rtab-log-btn"
-                  data-bs-toggle="tab" data-bs-target="#rtab-log"
-                  type="button" role="tab">📝 Log de validación AFIP</button>
+          <button class="nav-link fw-semibold" data-bs-toggle="tab"
+                  data-bs-target="#rtab-log" type="button" role="tab">📝 Log de validación AFIP</button>
         </li>
       </ul>
 
       <div class="tab-content border border-top-0 rounded-bottom">
-        <!-- Tabla de resultados -->
         <div class="tab-pane fade show active p-3" id="rtab-table" role="tabpanel">
           <div class="cae-table-wrap">
             <table class="cae-table" id="afip-results-table">
@@ -291,10 +480,9 @@
           </div>
         </div>
 
-        <!-- Log de validación -->
         <div class="tab-pane fade p-3" id="rtab-log" role="tabpanel">
           <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <p class="mb-0" style="font-size:.88rem; color:var(--ia-sub)">
+            <p class="mb-0" style="font-size:.88rem;color:var(--ia-sub)">
               Registro de cada comprobante enviado a AFIP/ARCA para validación.
             </p>
             <button class="btn btn-sm btn-outline-secondary" id="btn-download-log">
@@ -315,23 +503,120 @@
 (function () {
 'use strict';
 
-// ── Overlay helpers ───────────────────────────────────────────────────────────
-var overlay   = document.getElementById('cae-overlay');
-var ovTitle   = document.getElementById('overlay-title');
-var ovSub     = document.getElementById('overlay-sub');
-var ovBar     = document.getElementById('overlay-bar');
+// ══════════════════════════════════════════════════════════════
+// PIPELINE STATE
+// ══════════════════════════════════════════════════════════════
+var pipeline = { extract: true, cae: true, apoc: true };
+
+var toggleExtract = document.getElementById('toggle-extract');
+var toggleCae     = document.getElementById('toggle-cae');
+var toggleApoc    = document.getElementById('toggle-apoc');
+
+function updatePipelineState() {
+  pipeline.extract = toggleExtract ? toggleExtract.checked : true;
+  pipeline.cae     = toggleCae     ? toggleCae.checked     : true;
+  pipeline.apoc    = toggleApoc    ? toggleApoc.checked    : true;
+
+  // Node active/inactive
+  setNodeClass('node-extract', pipeline.extract ? 'active' : 'inactive');
+  setNodeClass('node-cae',     pipeline.cae     ? 'active' : 'inactive');
+  setNodeClass('node-apoc',    pipeline.apoc    ? 'active' : 'inactive');
+
+  // Connections
+  setConnActive('conn-12', pipeline.extract && pipeline.cae);
+  setConnActive('conn-23', pipeline.cae     && pipeline.apoc);
+
+  // Show right input area
+  var pdfArea = document.getElementById('input-pdf-area');
+  var urlArea = document.getElementById('input-url-area');
+  if (pdfArea) pdfArea.hidden = !pipeline.extract;
+  if (urlArea) urlArea.hidden =  pipeline.extract;
+}
+
+function setNodeClass(id, state) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('task-node--active','task-node--inactive',
+                      'task-node--running','task-node--done','task-node--error');
+  el.classList.add('task-node--' + state);
+}
+
+function setConnActive(id, active) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('pipeline-conn--active', active);
+}
+
+if (toggleExtract) toggleExtract.addEventListener('change', updatePipelineState);
+if (toggleCae)     toggleCae.addEventListener('change', updatePipelineState);
+if (toggleApoc)    toggleApoc.addEventListener('change', updatePipelineState);
+
+// ── Node status UI ─────────────────────────────────────────────
+function setNodeStatus(nodeId, state, text) {
+  // state: 'idle' | 'running' | 'done' | 'error' | 'skip'
+  var node     = document.getElementById(nodeId);
+  var iconEl   = node ? node.querySelector('.status-icon') : null;
+  var textEl   = node ? node.querySelector('[id^="status-"][id$="-text"]') : null;
+
+  if (node) {
+    node.classList.remove('task-node--active','task-node--inactive',
+                          'task-node--running','task-node--done','task-node--error');
+    if (state === 'running') node.classList.add('task-node--running');
+    else if (state === 'done')  node.classList.add('task-node--done');
+    else if (state === 'error') node.classList.add('task-node--error');
+    else if (state === 'skip')  node.classList.add('task-node--inactive');
+    else node.classList.add('task-node--active');
+  }
+  if (iconEl) {
+    iconEl.className = 'status-icon status-' + (state === 'skip' ? 'idle' : state);
+    if (state === 'idle')    iconEl.innerHTML = '○';
+    else if (state === 'running') iconEl.innerHTML = '<span class="spin"></span>';
+    else if (state === 'done')    iconEl.innerHTML = '✓';
+    else if (state === 'error')   iconEl.innerHTML = '✗';
+    else if (state === 'skip')    iconEl.innerHTML = '—';
+  }
+  if (textEl && text) textEl.textContent = text;
+}
+
+// ── Pipeline progress bar (global) ─────────────────────────────
+var pipeProgWrap  = document.getElementById('pipeline-progress-wrap');
+var pipeProgBar   = document.getElementById('pipeline-progress-bar');
+var pipeProgPct   = document.getElementById('pipeline-progress-pct');
+var pipeProgLabel = document.getElementById('pipeline-progress-label');
+var btnStart      = document.getElementById('btn-start-pipeline');
+
+function setPipelineProgress(pct, label, done) {
+  if (pipeProgWrap) pipeProgWrap.hidden = false;
+  if (pipeProgBar)  pipeProgBar.style.width = pct + '%';
+  if (pipeProgPct)  pipeProgPct.textContent  = pct + '%';
+  if (pipeProgLabel && label) pipeProgLabel.textContent = label;
+  if (done) {
+    if (pipeProgBar) pipeProgBar.classList.remove('progress-bar-striped','progress-bar-animated');
+    if (btnStart)    btnStart.disabled = false;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// OVERLAY helpers
+// ══════════════════════════════════════════════════════════════
+var overlay = document.getElementById('cae-overlay');
+var ovTitle = document.getElementById('overlay-title');
+var ovSub   = document.getElementById('overlay-sub');
+var ovBar   = document.getElementById('overlay-bar');
 
 function showOverlay(title, sub, pct) {
   if (ovTitle) ovTitle.textContent = title || 'Procesando…';
   if (ovSub)   ovSub.textContent   = sub   || '';
-  if (ovBar)   ovBar.style.width   = (pct || 0) + '%';
+  if (ovBar)   ovBar.style.width   = (pct||0) + '%';
   if (overlay) { overlay.hidden = false; overlay.removeAttribute('aria-hidden'); }
 }
 function hideOverlay() {
-  if (overlay) { overlay.hidden = true; overlay.setAttribute('aria-hidden', 'true'); }
+  if (overlay) { overlay.hidden = true; overlay.setAttribute('aria-hidden','true'); }
 }
 
-// ── Drop zone ─────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// DROP ZONE
+// ══════════════════════════════════════════════════════════════
 var dropZone  = document.getElementById('drop-zone');
 var fileInput = document.getElementById('file-input-pdf');
 var selLabel  = document.getElementById('drop-zone-sel');
@@ -342,56 +627,128 @@ function updateDropLabel(files) {
     ? '1 archivo seleccionado'
     : files.length + ' archivos seleccionados';
 }
-
 if (fileInput) fileInput.addEventListener('change', function () { updateDropLabel(fileInput.files); });
-
 if (dropZone) {
-  dropZone.addEventListener('dragover', function (e) {
-    e.preventDefault(); dropZone.classList.add('drag-over');
-  });
-  dropZone.addEventListener('dragleave', function (e) {
-    if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over');
-  });
+  dropZone.addEventListener('dragover', function (e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', function (e) { if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over'); });
   dropZone.addEventListener('drop', function (e) {
     e.preventDefault(); dropZone.classList.remove('drag-over');
     if (!e.dataTransfer || !e.dataTransfer.files.length) return;
-    try {
-      var dt = new DataTransfer();
-      Array.from(e.dataTransfer.files).forEach(function (f) { dt.items.add(f); });
-      fileInput.files = dt.files;
-    } catch (_) {}
+    try { var dt = new DataTransfer(); Array.from(e.dataTransfer.files).forEach(function(f){dt.items.add(f);}); fileInput.files = dt.files; } catch(_){}
     updateDropLabel(fileInput.files);
   });
 }
 
-// ── Rendering helpers ─────────────────────────────────────────────────────────
-function esc(s) {
-  return String(s == null ? '—' : s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
+// ══════════════════════════════════════════════════════════════
+// MAIN PIPELINE START
+// ══════════════════════════════════════════════════════════════
+if (btnStart) {
+  btnStart.addEventListener('click', function () {
+    if (pipeline.extract) {
+      runExtractStep();
+    } else {
+      runUrlStep();
+    }
+  });
 }
 
-// ── Render results table ──────────────────────────────────────────────────────
-var logBody    = document.getElementById('afip-log-body');
-var tbody      = document.getElementById('results-tbody');
-var summaryEl  = document.getElementById('results-summary');
-var resultsEl  = document.getElementById('results-section');
+function runExtractStep() {
+  var files = fileInput && fileInput.files;
+  if (!files || !files.length) { alert('Seleccioná al menos un archivo.'); return; }
+
+  btnStart.disabled = true;
+  setNodeStatus('node-extract', 'running', 'Leyendo QR…');
+  setPipelineProgress(10, 'Extrayendo datos del QR…');
+  showOverlay('Leyendo códigos QR…', 'El servidor está procesando los archivos.', 20);
+
+  var fd = new FormData();
+  Array.from(files).forEach(function (f) { fd.append('documents', f); });
+
+  fetch('/cae/upload-docs', { method: 'POST', body: fd })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function (data) {
+      hideOverlay();
+      setNodeStatus('node-extract', 'done', 'Completado');
+      setPipelineProgress(33, 'Extracción lista');
+      renderResults(data.results || []);
+    })
+    .catch(function (err) {
+      hideOverlay();
+      setNodeStatus('node-extract', 'error', 'Error');
+      setPipelineProgress(0, 'Error en extracción', true);
+      btnStart.disabled = false;
+      alert('Error al procesar los archivos: ' + err.message);
+    });
+}
+
+function runUrlStep() {
+  var textareaVal = (document.getElementById('qr-urls-input') || {}).value || '';
+  var csvFile = document.getElementById('csv-file-input');
+  if (!textareaVal.trim() && (!csvFile || !csvFile.files.length)) {
+    alert('Pegá al menos una URL o subí un archivo CSV/TXT.'); return;
+  }
+
+  btnStart.disabled = true;
+  if (!pipeline.extract) setNodeStatus('node-extract', 'skip', 'Omitido');
+  setNodeStatus('node-cae', 'running', 'Consultando…');
+  setPipelineProgress(20, 'Decodificando URLs AFIP…');
+  showOverlay('Consultando comprobantes…', 'Decodificando URLs AFIP.', 40);
+
+  var fd = new FormData();
+  fd.append('qr_urls', textareaVal);
+  if (csvFile && csvFile.files.length) fd.append('csv_file', csvFile.files[0]);
+
+  fetch('/cae/lookup-urls', { method: 'POST', body: fd })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function (data) {
+      hideOverlay();
+      setPipelineProgress(50, 'URLs decodificadas');
+      renderResults(data.results || []);
+    })
+    .catch(function (err) {
+      hideOverlay();
+      setNodeStatus('node-cae', 'error', 'Error');
+      setPipelineProgress(0, 'Error', true);
+      btnStart.disabled = false;
+      alert('Error al consultar comprobantes: ' + err.message);
+    });
+}
+
+// ══════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════
+function esc(s) {
+  return String(s == null ? '—' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDER RESULTS
+// ══════════════════════════════════════════════════════════════
+var logBody   = document.getElementById('afip-log-body');
+var tbody     = document.getElementById('results-tbody');
+var summaryEl = document.getElementById('results-summary');
+var resultsEl = document.getElementById('results-section');
+var progWrap  = document.getElementById('validation-progress-wrap');
+var progBar   = document.getElementById('validation-progress-bar');
+var progPct   = document.getElementById('validation-progress-pct');
+var progLabel = document.getElementById('validation-progress-label');
+var btnExport = document.getElementById('btn-export-csv');
 
 function renderResults(results) {
   if (!tbody) return;
   tbody.innerHTML = '';
   if (logBody) logBody.innerHTML = '';
 
-  // Reset progreso y botón
-  if (progWrap)  { progWrap.hidden = true; }
-  if (progBar)   { progBar.style.width = '0%'; progBar.classList.add('progress-bar-striped', 'progress-bar-animated'); }
-  if (progPct)   { progPct.textContent = '0%'; }
-  if (progLabel) { progLabel.textContent = 'Validando en AFIP…'; }
-  if (btnExport) { btnExport.disabled = true; }
+  if (progWrap)  progWrap.hidden = true;
+  if (progBar)   { progBar.style.width = '0%'; progBar.classList.add('progress-bar-striped','progress-bar-animated'); }
+  if (progPct)   progPct.textContent  = '0%';
+  if (progLabel) progLabel.textContent = 'Validando en AFIP…';
+  if (btnExport) btnExport.disabled = true;
 
-  var okCount  = 0;
-  var errCount = 0;
-  var totalARS = 0;
+  var okCount = 0, errCount = 0, totalARS = 0;
+  var skipCae  = !pipeline.cae;
+  var skipApoc = !pipeline.apoc;
 
   results.forEach(function (r, i) {
     var n  = i + 1;
@@ -399,13 +756,12 @@ function renderResults(results) {
 
     if (r.error) {
       errCount++;
-      var archivo = esc(r.archivo || r.input || '—');
       tr.setAttribute('data-log-error', '1');
       tr.setAttribute('data-log-file', r.archivo || r.input || '');
-      tr.setAttribute('data-log-msg', r.error || '');
+      tr.setAttribute('data-log-msg',  r.error || '');
       tr.innerHTML =
         '<td>' + n + '</td>' +
-        '<td style="font-size:.78rem"><code>' + archivo + '</code></td>' +
+        '<td style="font-size:.78rem"><code>' + esc(r.archivo || r.input || '—') + '</code></td>' +
         '<td colspan="8" class="err">' + esc(r.error) + '</td>' +
         '<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>';
     } else {
@@ -413,6 +769,17 @@ function renderResults(results) {
       var imp = parseFloat(r.importe_raw || 0);
       if (!isNaN(imp)) totalARS += imp;
       var afipUrl = esc(r.afip_url || '');
+
+      var caeTd = skipCae
+        ? '<td><span class="cae-badge cae-badge--skip">Omitido</span></td>'
+        : '<td class="cae-status-cell" data-afip-url="' + afipUrl + '">' +
+            '<span class="cae-badge cae-badge--loading">Verificando…</span></td>';
+
+      var apocTd = skipApoc
+        ? '<td><span class="apoc-badge apoc-badge--skip">Omitido</span></td>'
+        : '<td class="apoc-cell" data-cuit="' + esc(r.cuit_emisor) + '">' +
+            '<span class="apoc-badge apoc-badge--loading">Verificando…</span></td>';
+
       tr.innerHTML =
         '<td>' + n + '</td>' +
         '<td style="font-size:.78rem"><code>' + esc(r.archivo || '—') + '</code></td>' +
@@ -424,113 +791,35 @@ function renderResults(results) {
         '<td>' + esc(r.moneda) + '</td>' +
         '<td>' + esc(r.nro_doc_receptor) + '</td>' +
         '<td class="mono">' + esc(r.cae) + '</td>' +
-        '<td class="cae-status-cell" data-afip-url="' + afipUrl + '">' +
-          '<span class="cae-badge cae-badge--loading">Verificando…</span>' +
-        '</td>' +
-        '<td class="apoc-cell" data-cuit="' + esc(r.cuit_emisor) + '">' +
-          '<span class="apoc-badge apoc-badge--loading">Verificando…</span>' +
-        '</td>' +
+        caeTd + apocTd +
         '<td class="importe-afip-cell num">—</td>' +
         '<td class="diferencia-cell num">—</td>' +
         '<td class="obs-cell obs-ok">—</td>' +
-        '<td>' +
-          (r.afip_url
-            ? '<a href="' + afipUrl + '" target="_blank" rel="noopener noreferrer" style="font-size:.78rem">Ver</a>'
-            : '—') +
-        '</td>';
+        '<td>' + (r.afip_url ? '<a href="' + afipUrl + '" target="_blank" rel="noopener noreferrer" style="font-size:.78rem">Ver</a>' : '—') + '</td>';
     }
     tbody.appendChild(tr);
   });
 
-  // Filas de error → agregar al log de inmediato
   document.querySelectorAll('tr[data-log-error="1"]').forEach(function (row) {
-    addLogEntry(
-      row.getAttribute('data-log-file') || '—',
-      '— (sin URL AFIP)',
-      'proc_err',
-      row.getAttribute('data-log-msg') || 'Error desconocido'
-    );
+    addLogEntry(row.getAttribute('data-log-file')||'—','— (sin URL AFIP)','proc_err',row.getAttribute('data-log-msg')||'Error desconocido');
   });
 
-  // Resumen
   if (summaryEl) {
     summaryEl.innerHTML =
       '<div class="cae-summary__item">Comprobantes OK: <span>' + okCount + '</span></div>' +
-      (errCount > 0
-        ? '<div class="cae-summary__item" style="color:var(--bs-danger)">Sin QR AFIP: <span>' + errCount + '</span></div>'
-        : '') +
-      (totalARS > 0
-        ? '<div class="cae-summary__item">Total: <span>$' + totalARS.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</span></div>'
-        : '');
+      (errCount > 0 ? '<div class="cae-summary__item" style="color:var(--bs-danger)">Sin QR AFIP: <span>' + errCount + '</span></div>' : '') +
+      (totalARS > 0 ? '<div class="cae-summary__item">Total: <span>$' + totalARS.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</span></div>' : '');
   }
 
   if (resultsEl) resultsEl.hidden = false;
+  setTimeout(function () { if (resultsEl) resultsEl.scrollIntoView({behavior:'smooth',block:'start'}); }, 100);
 
-  // Scroll suave a resultados
-  setTimeout(function () {
-    if (resultsEl) resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 100);
-
-  // Iniciar validación AFIP secuencial
   startAfipValidation();
 }
 
-// ── Upload PDF handler ────────────────────────────────────────────────────────
-window.handlePdfUpload = function () {
-  var files = fileInput && fileInput.files;
-  if (!files || !files.length) { alert('Seleccioná al menos un archivo.'); return; }
-
-  showOverlay('Leyendo códigos QR…', 'El servidor está procesando los archivos.', 20);
-
-  var fd = new FormData();
-  Array.from(files).forEach(function (f) { fd.append('documents', f); });
-
-  fetch('/cae/upload-docs', { method: 'POST', body: fd })
-    .then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
-    .then(function (data) {
-      hideOverlay();
-      renderResults(data.results || []);
-    })
-    .catch(function (err) {
-      hideOverlay();
-      alert('Error al procesar los archivos: ' + err.message);
-    });
-};
-
-// ── URL lookup handler ────────────────────────────────────────────────────────
-window.handleUrlLookup = function () {
-  var textareaVal = (document.getElementById('qr-urls-input') || {}).value || '';
-  var csvFile = document.getElementById('csv-file-input');
-
-  if (!textareaVal.trim() && (!csvFile || !csvFile.files.length)) {
-    alert('Pegá al menos una URL o subí un archivo CSV/TXT.'); return;
-  }
-
-  showOverlay('Consultando comprobantes…', 'Decodificando URLs AFIP.', 40);
-
-  var fd = new FormData();
-  fd.append('qr_urls', textareaVal);
-  if (csvFile && csvFile.files.length) fd.append('csv_file', csvFile.files[0]);
-
-  fetch('/cae/lookup-urls', { method: 'POST', body: fd })
-    .then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
-    .then(function (data) {
-      hideOverlay();
-      renderResults(data.results || []);
-    })
-    .catch(function (err) {
-      hideOverlay();
-      alert('Error al consultar comprobantes: ' + err.message);
-    });
-};
-
-// ── AFIP sequential validation ────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// AFIP VALIDATION (sequential)
+// ══════════════════════════════════════════════════════════════
 var LABELS  = { valid:'✓ Válido en AFIP', invalid:'✗ No encontrado', unknown:'? Sin confirmar', error:'— Sin respuesta', proc_err:'✕ Sin QR AFIP' };
 var CLASSES = { valid:'cae-badge--valid', invalid:'cae-badge--invalid', unknown:'cae-badge--unknown', error:'cae-badge--error' };
 var ICONS   = { valid:'✓', invalid:'✗', unknown:'?', error:'—', proc_err:'✕' };
@@ -538,16 +827,14 @@ var ICON_CLS= { valid:'afip-log-icon--ok', invalid:'afip-log-icon--err', unknown
 
 function addLogEntry(label, afipUrl, status, message) {
   if (!logBody) return;
-  var li  = document.createElement('li');
+  var li = document.createElement('li');
   li.className = 'afip-log-entry';
   li.innerHTML =
-    '<span class="afip-log-icon ' + (ICON_CLS[status]||'afip-log-icon--muted') + '" aria-hidden="true">' +
-      (ICONS[status]||'—') +
-    '</span>' +
+    '<span class="afip-log-icon ' + (ICON_CLS[status]||'afip-log-icon--muted') + '">' + (ICONS[status]||'—') + '</span>' +
     '<div class="afip-log-detail">' +
       '<p class="afip-log-comp">' + esc(label) + '</p>' +
       '<p class="afip-log-url"><span class="afip-log-lbl">URL AFIP:</span><code>' + esc(afipUrl) + '</code></p>' +
-      '<p class="afip-log-resp"><span class="afip-log-lbl">Respuesta:</span>' + esc(message || '—') + '</p>' +
+      '<p class="afip-log-resp"><span class="afip-log-lbl">Respuesta:</span>' + esc(message||'—') + '</p>' +
     '</div>';
   logBody.appendChild(li);
 }
@@ -558,9 +845,7 @@ function getRowLabel(cell) {
   var tds = tr.querySelectorAll('td');
   for (var i = 1; i < tds.length; i++) {
     var t = tds[i].textContent.trim();
-    if (/^Factura|^Nota|^Recibo/i.test(t)) {
-      return (t + ' ' + ((tds[i+1]||{}).textContent||'')).trim();
-    }
+    if (/^Factura|^Nota|^Recibo/i.test(t)) return (t + ' ' + ((tds[i+1]||{}).textContent||'')).trim();
   }
   return tds[1] ? tds[1].textContent.trim() : '—';
 }
@@ -569,10 +854,8 @@ function validateCell(cell) {
   return new Promise(function (resolve) {
     var afipUrl = cell.getAttribute('data-afip-url') || '';
     if (!afipUrl) { resolve(); return; }
-
     var tr    = cell.closest ? cell.closest('tr') : null;
     var label = getRowLabel(cell);
-
     var fd = new FormData();
     fd.append('afip_url', afipUrl);
 
@@ -580,61 +863,28 @@ function validateCell(cell) {
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var status = data.status || 'error';
-
-        // Badge
-        var badge = cell.querySelector('.cae-badge');
-        if (badge) {
-          badge.className   = 'cae-badge ' + (CLASSES[status] || 'cae-badge--error');
-          badge.textContent = LABELS[status] || '—';
-          badge.title       = data.message || '';
-        }
-
+        var badge  = cell.querySelector('.cae-badge');
+        if (badge) { badge.className = 'cae-badge ' + (CLASSES[status]||'cae-badge--error'); badge.textContent = LABELS[status]||'—'; badge.title = data.message||''; }
         if (tr) {
-          // Importe AFIP
           var importeCell = tr.querySelector('.importe-afip-cell');
           var difCell     = tr.querySelector('.diferencia-cell');
           var obsCell     = tr.querySelector('.obs-cell');
           var difFmt      = null;
-
           if (importeCell && status === 'valid') {
             var rawVal = parseFloat(data.importe_afip);
-            if (!isNaN(rawVal)) {
-              importeCell.textContent = '$ ' + rawVal.toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
-              importeCell.className   = 'importe-afip-cell num ia-match';
-              importeCell.title       = 'Importe registrado por AFIP al autorizar el CAE';
-            } else {
-              importeCell.textContent = 'N/D';
-              importeCell.className   = 'importe-afip-cell num ia-nd';
-            }
+            if (!isNaN(rawVal)) { importeCell.textContent = '$ ' + rawVal.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}); importeCell.className = 'importe-afip-cell num ia-match'; importeCell.title = 'Importe registrado por AFIP al autorizar el CAE'; }
+            else { importeCell.textContent = 'N/D'; importeCell.className = 'importe-afip-cell num ia-nd'; }
           }
-
-          // Diferencia
           if (difCell && status === 'valid') {
             var dif = parseFloat(data.diferencia);
-            if (!isNaN(dif) && dif > 0) {
-              difFmt = dif.toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
-              difCell.textContent = '$ ' + difFmt;
-              difCell.className   = 'diferencia-cell num ia-dif-nonzero';
-              difCell.title       = 'Diferencia entre el importe del QR y el valor probable en pesos';
-            } else {
-              difCell.textContent = '$0,00';
-              difCell.className   = 'diferencia-cell num ia-dif-zero';
-            }
+            if (!isNaN(dif) && dif > 0) { difFmt = dif.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}); difCell.textContent = '$ '+difFmt; difCell.className = 'diferencia-cell num ia-dif-nonzero'; difCell.title = 'Diferencia entre el importe del QR y el valor probable en pesos'; }
+            else { difCell.textContent = '$0,00'; difCell.className = 'diferencia-cell num ia-dif-zero'; }
           }
-
-          // Observaciones
           if (obsCell) {
-            if (data.observacion) {
-              obsCell.textContent = '⚠ ' + data.observacion;
-              obsCell.className   = 'obs-cell obs-warn';
-              obsCell.title       = data.observacion;
-            } else if (status === 'valid') {
-              obsCell.textContent = 'Sin observaciones';
-              obsCell.className   = 'obs-cell obs-ok';
-            }
+            if (data.observacion) { obsCell.textContent = '⚠ '+data.observacion; obsCell.className = 'obs-cell obs-warn'; obsCell.title = data.observacion; }
+            else if (status === 'valid') { obsCell.textContent = 'Sin observaciones'; obsCell.className = 'obs-cell obs-ok'; }
           }
         }
-
         var logMsg = data.message || '';
         if (difFmt) logMsg += ' — Diferencia: $' + difFmt;
         addLogEntry(label, afipUrl, status, logMsg);
@@ -648,67 +898,84 @@ function validateCell(cell) {
   });
 }
 
-var progWrap  = document.getElementById('validation-progress-wrap');
-var progBar   = document.getElementById('validation-progress-bar');
-var progPct   = document.getElementById('validation-progress-pct');
-var progLabel = document.getElementById('validation-progress-label');
-
 function setProgress(done, total) {
   var pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  if (progBar)  { progBar.style.width = pct + '%'; }
-  if (progPct)  { progPct.textContent = pct + '%'; }
-  if (progLabel && done < total) { progLabel.textContent = 'Validando en AFIP… (' + done + ' de ' + total + ')'; }
+  if (progBar)  progBar.style.width = pct + '%';
+  if (progPct)  progPct.textContent  = pct + '%';
+  if (progLabel && done < total) progLabel.textContent = 'Validando en AFIP… (' + done + ' de ' + total + ')';
   if (done >= total) {
-    if (progLabel) { progLabel.textContent = 'Validación completa (' + total + ' de ' + total + ')'; }
-    if (progBar)   { progBar.classList.remove('progress-bar-striped', 'progress-bar-animated'); }
-    if (btnExport) { btnExport.disabled = false; }
+    if (progLabel) progLabel.textContent = 'Validación completa (' + total + ' de ' + total + ')';
+    if (progBar)   progBar.classList.remove('progress-bar-striped','progress-bar-animated');
+    if (btnExport) btnExport.disabled = false;
   }
 }
 
 function startAfipValidation() {
-  var afipCells = document.querySelectorAll('.cae-status-cell[data-afip-url]');
-  var apocCells = document.querySelectorAll('.apoc-cell[data-cuit]');
+  var afipCells = pipeline.cae  ? document.querySelectorAll('.cae-status-cell[data-afip-url]') : [];
+  var apocCells = pipeline.apoc ? document.querySelectorAll('.apoc-cell[data-cuit]')           : [];
 
-  if (btnExport) { btnExport.disabled = true; }
+  if (btnExport) btnExport.disabled = true;
 
-  // Lanzar verificación apócrifos en paralelo (sin bloquear la validación AFIP)
-  // Usamos CUITs únicos para no repetir llamadas al mismo CUIT
-  var seenCuits = {};
-  apocCells.forEach(function (cell) {
-    var cuit = (cell.getAttribute('data-cuit') || '').replace(/\D/g, '');
-    if (!cuit || seenCuits[cuit]) {
-      // Mismo CUIT ya consultado: esperar al primero y copiar resultado
+  // APOC: paralelo, CUITs únicos
+  if (pipeline.apoc) {
+    setNodeStatus('node-apoc', 'running', 'Consultando…');
+    var seenCuits = {};
+    var apocPromises = [];
+    apocCells.forEach(function (cell) {
+      var cuit = (cell.getAttribute('data-cuit') || '').replace(/\D/g, '');
+      if (!cuit) return;
       if (seenCuits[cuit]) {
         seenCuits[cuit].then(function () {
-          var srcBadge = document.querySelector(
-            '.apoc-cell[data-cuit="' + cell.getAttribute('data-cuit') + '"] .apoc-badge'
-          );
-          var dstBadge = cell.querySelector('.apoc-badge');
-          if (srcBadge && dstBadge && srcBadge !== dstBadge) {
-            dstBadge.className   = srcBadge.className;
-            dstBadge.textContent = srcBadge.textContent;
-            dstBadge.title       = srcBadge.title;
-          }
+          var src = document.querySelector('.apoc-cell[data-cuit="' + cell.getAttribute('data-cuit') + '"] .apoc-badge');
+          var dst = cell.querySelector('.apoc-badge');
+          if (src && dst && src !== dst) { dst.className = src.className; dst.textContent = src.textContent; dst.title = src.title; }
         });
+        return;
       }
-      return;
-    }
-    seenCuits[cuit] = checkApocCell(cell);
-  });
+      var p = checkApocCell(cell);
+      seenCuits[cuit] = p;
+      apocPromises.push(p);
+    });
+    Promise.all(apocPromises).then(function () {
+      setNodeStatus('node-apoc', 'done', 'Completado');
+      // Update pipeline progress when all done
+      if (!pipeline.cae) {
+        setPipelineProgress(100, 'Proceso completado', true);
+        if (btnExport) btnExport.disabled = false;
+      }
+    });
+  } else {
+    setNodeStatus('node-apoc', 'skip', 'Omitido');
+  }
 
-  if (!afipCells.length) {
-    if (btnExport) { btnExport.disabled = false; }
+  // CAE: secuencial
+  if (!pipeline.cae) {
+    setNodeStatus('node-cae', 'skip', 'Omitido');
+    if (!pipeline.apoc) {
+      setPipelineProgress(100, 'Proceso completado', true);
+      if (btnExport) btnExport.disabled = false;
+    }
     return;
   }
 
-  var total = afipCells.length;
-  var done  = 0;
+  if (!afipCells.length) {
+    setNodeStatus('node-cae', 'done', 'Sin URLs');
+    if (btnExport) btnExport.disabled = false;
+    return;
+  }
 
-  if (progWrap) { progWrap.hidden = false; }
+  setNodeStatus('node-cae', 'running', 'Validando…');
+  var total = afipCells.length, done = 0;
+  if (progWrap) progWrap.hidden = false;
   setProgress(0, total);
+  setPipelineProgress(50, 'Validando CAE en AFIP…');
 
   (function processNext(i) {
-    if (i >= total) return;
+    if (i >= total) {
+      setNodeStatus('node-cae', 'done', 'Completado');
+      setPipelineProgress(pipeline.apoc ? 85 : 100, pipeline.apoc ? 'Verificando apócrifos…' : 'Proceso completado', !pipeline.apoc);
+      return;
+    }
     validateCell(afipCells[i]).then(function () {
       done++;
       setProgress(done, total);
@@ -717,16 +984,17 @@ function startAfipValidation() {
   })(0);
 }
 
-// ── APOC check ────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// APOC CHECK
+// ══════════════════════════════════════════════════════════════
 function checkApocCell(cell) {
   return new Promise(function (resolve) {
-    var cuit = cell.getAttribute('data-cuit') || '';
+    var cuit  = cell.getAttribute('data-cuit') || '';
     var badge = cell.querySelector('.apoc-badge');
     if (!cuit || cuit === '—') {
       if (badge) { badge.className = 'apoc-badge apoc-badge--error'; badge.textContent = 'N/D'; }
       resolve(); return;
     }
-
     var fd = new FormData();
     fd.append('cuit', cuit.replace(/\D/g, ''));
 
@@ -734,64 +1002,47 @@ function checkApocCell(cell) {
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!badge) return;
-        if (data.error && !data.is_apoc) {
-          badge.className = 'apoc-badge apoc-badge--error';
-          badge.textContent = 'Error';
-          badge.title = data.error;
-          return;
-        }
+        if (data.error && !data.is_apoc) { badge.className = 'apoc-badge apoc-badge--error'; badge.textContent = 'Error'; badge.title = data.error; return; }
         if (data.is_apoc) {
-          badge.className = 'apoc-badge apoc-badge--yes';
-          badge.textContent = 'SÍ - Apócrifo';
-          var tip = '';
-          if (data.fecha_condicion)   tip += 'Condición: ' + data.fecha_condicion + ' ';
-          if (data.fecha_publicacion) tip += 'Publicado: ' + data.fecha_publicacion;
+          badge.className = 'apoc-badge apoc-badge--yes'; badge.textContent = 'SÍ - Apócrifo';
+          var tip = ''; if (data.fecha_condicion) tip += 'Condición: '+data.fecha_condicion+' '; if (data.fecha_publicacion) tip += 'Publicado: '+data.fecha_publicacion;
           badge.title = tip.trim() || 'CUIT en base APOC de ARCA';
-        } else {
-          badge.className = 'apoc-badge apoc-badge--no';
-          badge.textContent = 'No';
-          badge.title = 'CUIT no figura en base APOC de ARCA';
-        }
+        } else { badge.className = 'apoc-badge apoc-badge--no'; badge.textContent = 'No'; badge.title = 'CUIT no figura en base APOC de ARCA'; }
       })
-      .catch(function () {
-        if (badge) { badge.className = 'apoc-badge apoc-badge--error'; badge.textContent = 'Error'; }
-      })
+      .catch(function () { if (badge) { badge.className = 'apoc-badge apoc-badge--error'; badge.textContent = 'Error'; } })
       .finally(resolve);
   });
 }
 
-// ── Export CSV ────────────────────────────────────────────────────────────────
-var btnExport = document.getElementById('btn-export-csv');
+// ══════════════════════════════════════════════════════════════
+// EXPORT CSV
+// ══════════════════════════════════════════════════════════════
 if (btnExport) {
   btnExport.addEventListener('click', function () {
     var table = document.getElementById('afip-results-table');
     if (!table) return;
-    var rows = [];
-    var ths = table.querySelectorAll('thead th');
-    var headers = [];
+    var rows = [], ths = table.querySelectorAll('thead th'), headers = [];
     for (var i = 0; i < ths.length - 1; i++) headers.push('"' + ths[i].textContent.trim() + '"');
     rows.push(headers.join(';'));
     table.querySelectorAll('tbody tr').forEach(function (tr) {
-      var tds = tr.querySelectorAll('td');
-      var cols = [];
+      var tds = tr.querySelectorAll('td'), cols = [];
       for (var i = 0; i < tds.length - 1; i++) {
-        // Para la celda apócrifo usar el badge, no el contenedor
-        var apocBadge = tds[i].querySelector('.apoc-badge');
-        var val = apocBadge ? apocBadge.textContent.trim() : tds[i].textContent.trim();
-        cols.push('"' + val.replace(/"/g,'""') + '"');
+        var b = tds[i].querySelector('.apoc-badge,.cae-badge');
+        cols.push('"' + (b ? b.textContent.trim() : tds[i].textContent.trim()).replace(/"/g,'""') + '"');
       }
       rows.push(cols.join(';'));
     });
     var blob = new Blob(['\uFEFF' + rows.join('\r\n')], {type:'text/csv;charset=utf-8;'});
     var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'comprobantes_afip.csv';
+    a.href = URL.createObjectURL(blob); a.download = 'comprobantes_afip.csv';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(a.href);
   });
 }
 
-// ── Download log ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// DOWNLOAD LOG
+// ══════════════════════════════════════════════════════════════
 var btnLog = document.getElementById('btn-download-log');
 if (btnLog) {
   btnLog.addEventListener('click', function () {
@@ -799,23 +1050,21 @@ if (btnLog) {
     if (!items.length) { alert('El log está vacío — esperá a que termine la validación.'); return; }
     var lines = ['Log de validación AFIP — ' + new Date().toLocaleString('es-AR'), ''];
     items.forEach(function (li) {
-      var comp = li.querySelector('.afip-log-comp');
-      var url  = li.querySelector('.afip-log-url code');
-      var resp = li.querySelector('.afip-log-resp');
-      var icon = li.querySelector('.afip-log-icon');
+      var comp = li.querySelector('.afip-log-comp'), url = li.querySelector('.afip-log-url code'), resp = li.querySelector('.afip-log-resp'), icon = li.querySelector('.afip-log-icon');
       lines.push('[' + (icon?icon.textContent.trim():'?') + '] ' + (comp?comp.textContent.trim():'—'));
       lines.push('  URL:       ' + (url?url.textContent.trim():'—'));
       lines.push('  Respuesta: ' + (resp?resp.textContent.replace(/^Respuesta:/i,'').trim():'—'));
       lines.push('');
     });
     var blob = new Blob([lines.join('\r\n')], {type:'text/plain;charset=utf-8;'});
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'log_validacion_afip.txt';
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'log_validacion_afip.txt';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(a.href);
   });
 }
+
+// ── Init ───────────────────────────────────────────────────────
+updatePipelineState();
 
 })();
 </script>
