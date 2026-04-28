@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:servicioscf.afip.gob.ar)",
+      "WebFetch(domain:www.afip.gob.ar)"
+    ]
+  }
+}

@@ -22,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 from app.core.auth import get_current_user
 from app.services.afip import validar_cae, _validar_cae_local
 from app.services import afip_qr_decoder as qr
+from app.services import afip_apoc
 
 router = APIRouter(prefix="/cae", tags=["CAE / AFIP"])
 templates = Jinja2Templates(directory="app/templates")
@@ -216,6 +217,39 @@ async def validate_afip_url(request: Request, user=Depends(get_current_user)):
         "status": "unknown",
         "message": "AFIP respondió pero no se pudo determinar el estado",
     })
+
+
+# ── Consulta apócrifos ─────────────────────────────────────────────────────────
+
+@router.post("/check-apoc")
+async def check_apoc(request: Request, user=Depends(get_current_user)):
+    """
+    Verifica si un CUIT emisor está en la base de facturas apócrifas de ARCA/AFIP.
+    Descarga y cachea el listado público (sin CAPTCHA ni certificado).
+    Body form: cuit
+    Respuesta: {"is_apoc": bool, "fecha_condicion": str|null, "fecha_publicacion": str|null,
+                "cache_age_hours": float|null, "error": str|null}
+    """
+    if not user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+
+    form = await request.form()
+    cuit = re.sub(r"\D", "", str(form.get("cuit", "")).strip())
+
+    if len(cuit) != 11:
+        return JSONResponse({"error": "CUIT inválido"}, status_code=400)
+
+    result = await afip_apoc.check_cuit_apoc(cuit)
+    return JSONResponse(result)
+
+
+@router.get("/apoc/stats")
+async def apoc_stats(user=Depends(get_current_user)):
+    """Info sobre el cache de la base APOC (diagnóstico)."""
+    if not user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+    stats = await afip_apoc.get_cache_stats()
+    return JSONResponse(stats)
 
 
 # ── Endpoints originales ───────────────────────────────────────────────────────

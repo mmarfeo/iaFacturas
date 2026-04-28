@@ -109,6 +109,18 @@
 .cae-overlay__title { font-weight: 700; font-size: 1.1rem; margin-bottom: .5rem; }
 .cae-overlay__sub   { font-size: .88rem; color: var(--bs-secondary-color); margin: 0; }
 
+/* ── Apócrifo badge ───────────────────────────────────────── */
+.apoc-badge {
+  display: inline-block; padding: .15rem .5rem; border-radius: 4px;
+  font-size: .75rem; font-weight: 600; white-space: nowrap;
+}
+.apoc-badge--loading  { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
+.apoc-badge--no       { background: #d1fae5; color: #065f46; }
+.apoc-badge--yes      { background: #fee2e2; color: #991b1b; }
+.apoc-badge--error    { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
+[data-bs-theme="dark"] .apoc-badge--no  { background: #065f46; color: #a7f3d0; }
+[data-bs-theme="dark"] .apoc-badge--yes { background: #991b1b; color: #fecaca; }
+
 /* ── Summary strip ────────────────────────────────────────── */
 .cae-summary {
   display: flex; flex-wrap: wrap; gap: 1.25rem;
@@ -267,6 +279,7 @@
                   <th>CUIT Receptor</th>
                   <th>CAE</th>
                   <th>Estado AFIP</th>
+                  <th>¿Apócrifo?</th>
                   <th>Importe AFIP</th>
                   <th>Diferencia</th>
                   <th>Observaciones</th>
@@ -413,6 +426,9 @@ function renderResults(results) {
         '<td class="mono">' + esc(r.cae) + '</td>' +
         '<td class="cae-status-cell" data-afip-url="' + afipUrl + '">' +
           '<span class="cae-badge cae-badge--loading">Verificando…</span>' +
+        '</td>' +
+        '<td class="apoc-cell" data-cuit="' + esc(r.cuit_emisor) + '">' +
+          '<span class="apoc-badge apoc-badge--loading">Verificando…</span>' +
         '</td>' +
         '<td class="importe-afip-cell num">—</td>' +
         '<td class="diferencia-cell num">—</td>' +
@@ -650,17 +666,42 @@ function setProgress(done, total) {
 }
 
 function startAfipValidation() {
-  var cells = document.querySelectorAll('.cae-status-cell[data-afip-url]');
+  var afipCells = document.querySelectorAll('.cae-status-cell[data-afip-url]');
+  var apocCells = document.querySelectorAll('.apoc-cell[data-cuit]');
 
   if (btnExport) { btnExport.disabled = true; }
 
-  if (!cells.length) {
-    // No hay URLs que validar — habilitar el botón directamente
+  // Lanzar verificación apócrifos en paralelo (sin bloquear la validación AFIP)
+  // Usamos CUITs únicos para no repetir llamadas al mismo CUIT
+  var seenCuits = {};
+  apocCells.forEach(function (cell) {
+    var cuit = (cell.getAttribute('data-cuit') || '').replace(/\D/g, '');
+    if (!cuit || seenCuits[cuit]) {
+      // Mismo CUIT ya consultado: esperar al primero y copiar resultado
+      if (seenCuits[cuit]) {
+        seenCuits[cuit].then(function () {
+          var srcBadge = document.querySelector(
+            '.apoc-cell[data-cuit="' + cell.getAttribute('data-cuit') + '"] .apoc-badge'
+          );
+          var dstBadge = cell.querySelector('.apoc-badge');
+          if (srcBadge && dstBadge && srcBadge !== dstBadge) {
+            dstBadge.className   = srcBadge.className;
+            dstBadge.textContent = srcBadge.textContent;
+            dstBadge.title       = srcBadge.title;
+          }
+        });
+      }
+      return;
+    }
+    seenCuits[cuit] = checkApocCell(cell);
+  });
+
+  if (!afipCells.length) {
     if (btnExport) { btnExport.disabled = false; }
     return;
   }
 
-  var total = cells.length;
+  var total = afipCells.length;
   var done  = 0;
 
   if (progWrap) { progWrap.hidden = false; }
@@ -668,12 +709,55 @@ function startAfipValidation() {
 
   (function processNext(i) {
     if (i >= total) return;
-    validateCell(cells[i]).then(function () {
+    validateCell(afipCells[i]).then(function () {
       done++;
       setProgress(done, total);
       setTimeout(function () { processNext(i + 1); }, 600);
     });
   })(0);
+}
+
+// ── APOC check ────────────────────────────────────────────────────────────────
+function checkApocCell(cell) {
+  return new Promise(function (resolve) {
+    var cuit = cell.getAttribute('data-cuit') || '';
+    var badge = cell.querySelector('.apoc-badge');
+    if (!cuit || cuit === '—') {
+      if (badge) { badge.className = 'apoc-badge apoc-badge--error'; badge.textContent = 'N/D'; }
+      resolve(); return;
+    }
+
+    var fd = new FormData();
+    fd.append('cuit', cuit.replace(/\D/g, ''));
+
+    fetch('/cae/check-apoc', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!badge) return;
+        if (data.error && !data.is_apoc) {
+          badge.className = 'apoc-badge apoc-badge--error';
+          badge.textContent = 'Error';
+          badge.title = data.error;
+          return;
+        }
+        if (data.is_apoc) {
+          badge.className = 'apoc-badge apoc-badge--yes';
+          badge.textContent = 'SÍ - Apócrifo';
+          var tip = '';
+          if (data.fecha_condicion)   tip += 'Condición: ' + data.fecha_condicion + ' ';
+          if (data.fecha_publicacion) tip += 'Publicado: ' + data.fecha_publicacion;
+          badge.title = tip.trim() || 'CUIT en base APOC de ARCA';
+        } else {
+          badge.className = 'apoc-badge apoc-badge--no';
+          badge.textContent = 'No';
+          badge.title = 'CUIT no figura en base APOC de ARCA';
+        }
+      })
+      .catch(function () {
+        if (badge) { badge.className = 'apoc-badge apoc-badge--error'; badge.textContent = 'Error'; }
+      })
+      .finally(resolve);
+  });
 }
 
 // ── Export CSV ────────────────────────────────────────────────────────────────
@@ -691,7 +775,10 @@ if (btnExport) {
       var tds = tr.querySelectorAll('td');
       var cols = [];
       for (var i = 0; i < tds.length - 1; i++) {
-        cols.push('"' + tds[i].textContent.trim().replace(/"/g,'""') + '"');
+        // Para la celda apócrifo usar el badge, no el contenedor
+        var apocBadge = tds[i].querySelector('.apoc-badge');
+        var val = apocBadge ? apocBadge.textContent.trim() : tds[i].textContent.trim();
+        cols.push('"' + val.replace(/"/g,'""') + '"');
       }
       rows.push(cols.join(';'));
     });
