@@ -22,14 +22,10 @@
     <div class="mb-4">
       <label class="form-label fw-semibold mb-2">Modo de división</label>
       <div class="d-flex gap-2 flex-wrap">
-        <button type="button" id="btnModeAll"
-                class="btn ia-btn-mode active"
-                onclick="setMode('all')">
+        <button type="button" id="btnModeAll" class="btn ia-btn-mode active">
           📄 Todas las hojas
         </button>
-        <button type="button" id="btnModeRange"
-                class="btn ia-btn-mode"
-                onclick="setMode('range')">
+        <button type="button" id="btnModeRange" class="btn ia-btn-mode">
           ✂️ Rango de páginas
         </button>
       </div>
@@ -56,23 +52,19 @@
     </div>
 
     <!-- Drop zone -->
-    <div id="dropZone" class="ia-drop-zone mb-3"
-         onclick="fileInput.click()"
-         ondragover="onDragOver(event)"
-         ondragleave="onDragLeave(event)"
-         ondrop="onDrop(event)">
+    <div id="dropZone" class="ia-drop-zone mb-3">
       <div class="ia-drop-icon">📂</div>
       <div class="ia-drop-title">Arrastrá o hacé clic para subir PDFs</div>
       <div class="ia-drop-sub">Podés subir uno o varios archivos a la vez</div>
     </div>
     <input type="file" id="fileInput" accept=".pdf,application/pdf"
-           multiple style="display:none" onchange="onFilesSelected(this.files)">
+           multiple style="display:none">
 
     <!-- Lista de archivos -->
     <div id="fileList" class="mb-3" style="display:none">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <span class="fw-semibold small">Archivos seleccionados</span>
-        <button class="btn btn-link btn-sm p-0 text-danger" onclick="clearFiles()">
+        <button id="btnClear" class="btn btn-link btn-sm p-0 text-danger">
           Limpiar
         </button>
       </div>
@@ -88,8 +80,7 @@
         </div>
         <div id="statusMsg" class="small text-muted mt-1" style="min-height:1.2em"></div>
       </div>
-      <button id="btnSplit" class="btn ia-btn-primary px-4"
-              onclick="doSplit()" disabled>
+      <button id="btnSplit" class="btn ia-btn-primary px-4" disabled>
         Dividir y descargar ZIP
       </button>
     </div>
@@ -181,199 +172,209 @@
 
 {% block extra_js %}
 <script>
-const fileInput = document.getElementById('fileInput');
-let selectedFiles = [];
-let currentMode = 'all';
+(function () {
+  // ── Referencias DOM ──────────────────────────────────────────────────────────
+  const dropZone    = document.getElementById('dropZone');
+  const fileInput   = document.getElementById('fileInput');
+  const fileList    = document.getElementById('fileList');
+  const fileItems   = document.getElementById('fileItems');
+  const btnClear    = document.getElementById('btnClear');
+  const btnSplit    = document.getElementById('btnSplit');
+  const btnModeAll  = document.getElementById('btnModeAll');
+  const btnModeRange= document.getElementById('btnModeRange');
+  const rangeRow    = document.getElementById('rangeRow');
+  const pageStart   = document.getElementById('pageStart');
+  const pageEnd     = document.getElementById('pageEnd');
+  const pageCount   = document.getElementById('pageCount');
+  const progressBar = document.getElementById('progressBar');
+  const progressFill= document.getElementById('progressFill');
+  const statusMsg   = document.getElementById('statusMsg');
 
-// ── Modo ───────────────────────────────────────────────────────────────────────
-function setMode(m) {
-  currentMode = m;
-  document.getElementById('btnModeAll').classList.toggle('active', m === 'all');
-  document.getElementById('btnModeRange').classList.toggle('active', m === 'range');
-  document.getElementById('rangeRow').classList.toggle('d-none', m !== 'range');
-}
+  let selectedFiles = [];
+  let currentMode   = 'all';
 
-// ── Drag & drop ────────────────────────────────────────────────────────────────
-function onDragOver(e) {
-  e.preventDefault();
-  document.getElementById('dropZone').classList.add('drag-over');
-}
-function onDragLeave(e) {
-  document.getElementById('dropZone').classList.remove('drag-over');
-}
-function onDrop(e) {
-  e.preventDefault();
-  document.getElementById('dropZone').classList.remove('drag-over');
-  const files = [...e.dataTransfer.files].filter(f =>
-    f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
-  );
-  if (files.length) addFiles(files);
-  else setStatus('Solo se aceptan archivos PDF.', 'text-danger');
-}
-function onFilesSelected(files) {
-  addFiles([...files]);
-}
+  // ── Modo ─────────────────────────────────────────────────────────────────────
+  function setMode(m) {
+    currentMode = m;
+    btnModeAll.classList.toggle('active',  m === 'all');
+    btnModeRange.classList.toggle('active', m === 'range');
+    rangeRow.classList.toggle('d-none', m !== 'range');
+    if (m === 'range' && selectedFiles.length === 1) fetchPageCount(selectedFiles[0]);
+  }
 
-// ── Gestión de archivos ────────────────────────────────────────────────────────
-function addFiles(newFiles) {
-  const existing = new Set(selectedFiles.map(f => f.name + f.size));
-  newFiles.forEach(f => {
-    if (!existing.has(f.name + f.size)) {
-      selectedFiles.push(f);
-      existing.add(f.name + f.size);
+  btnModeAll.addEventListener('click',  () => setMode('all'));
+  btnModeRange.addEventListener('click', () => setMode('range'));
+
+  // ── Drag & drop ──────────────────────────────────────────────────────────────
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('drag-over');
+  });
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const files = [...e.dataTransfer.files].filter(
+      f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+    );
+    if (files.length) addFiles(files);
+    else setStatus('Solo se aceptan archivos PDF.', 'text-danger');
+  });
+
+  fileInput.addEventListener('change', () => addFiles([...fileInput.files]));
+
+  // ── Gestión de archivos ───────────────────────────────────────────────────────
+  function addFiles(newFiles) {
+    const existing = new Set(selectedFiles.map(f => f.name + f.size));
+    newFiles.forEach(f => {
+      if (!existing.has(f.name + f.size)) {
+        selectedFiles.push(f);
+        existing.add(f.name + f.size);
+      }
+    });
+    renderFileList();
+    if (currentMode === 'range' && selectedFiles.length === 1) fetchPageCount(selectedFiles[0]);
+  }
+
+  function removeFile(idx) {
+    selectedFiles.splice(idx, 1);
+    renderFileList();
+    pageCount.style.display = 'none';
+  }
+
+  btnClear.addEventListener('click', () => {
+    selectedFiles = [];
+    fileInput.value = '';
+    renderFileList();
+    pageCount.style.display = 'none';
+    setStatus('');
+  });
+
+  function renderFileList() {
+    if (!selectedFiles.length) {
+      fileList.style.display = 'none';
+      btnSplit.disabled = true;
+      return;
+    }
+    fileList.style.display = '';
+    btnSplit.disabled = false;
+    fileItems.innerHTML = selectedFiles.map((f, i) => `
+      <div class="ia-file-item">
+        <span>📄</span>
+        <span class="fi-name" title="${esc(f.name)}">${esc(f.name)}</span>
+        <span class="fi-size">${fmtSize(f.size)}</span>
+        <button class="fi-remove" data-idx="${i}" title="Quitar">✕</button>
+      </div>
+    `).join('');
+
+    // Eventos de quitar (delegados al contenedor)
+    fileItems.querySelectorAll('.fi-remove').forEach(btn => {
+      btn.addEventListener('click', () => removeFile(parseInt(btn.dataset.idx)));
+    });
+  }
+
+  // ── Cantidad de páginas (modo rango, 1 archivo) ───────────────────────────────
+  async function fetchPageCount(file) {
+    pageCount.style.display = 'none';
+    try {
+      const fd = new FormData();
+      fd.append('documento', file);
+      const r    = await fetch('/pdf-toolkit/info', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (data.paginas) {
+        pageCount.textContent   = `${data.paginas} pág.`;
+        pageCount.style.display = '';
+        pageEnd.max   = data.paginas;
+        pageStart.max = data.paginas;
+        if (parseInt(pageEnd.value) > data.paginas) pageEnd.value = data.paginas;
+      }
+    } catch (_) {}
+  }
+
+  pageStart.addEventListener('change', () => {
+    if (currentMode === 'range' && selectedFiles.length === 1) fetchPageCount(selectedFiles[0]);
+  });
+
+  // ── Split ─────────────────────────────────────────────────────────────────────
+  btnSplit.addEventListener('click', async () => {
+    if (!selectedFiles.length) return;
+
+    btnSplit.disabled = true;
+    progressBar.style.display = '';
+    progressFill.style.width  = '100%';
+    progressFill.classList.add('progress-bar-animated');
+
+    const label = currentMode === 'all'
+      ? 'todas las hojas'
+      : `páginas ${pageStart.value}–${pageEnd.value}`;
+    setStatus(`Procesando ${selectedFiles.length} archivo(s)… (${label})`, 'text-muted');
+
+    const fd = new FormData();
+    selectedFiles.forEach(f => fd.append('documents', f));
+    fd.append('mode',       currentMode);
+    fd.append('page_start', pageStart.value);
+    fd.append('page_end',   pageEnd.value);
+
+    try {
+      const r = await fetch('/pdf-toolkit/split', { method: 'POST', body: fd });
+
+      if (!r.ok) {
+        let msg = `Error ${r.status}`;
+        try { const d = await r.json(); msg = d.error || msg; } catch (_) {}
+        throw new Error(msg);
+      }
+
+      const blob  = await r.blob();
+      const disp  = r.headers.get('Content-Disposition') || '';
+      const match = disp.match(/filename=([^\s;]+)/);
+      const fname = match ? match[1] : 'hojas_separadas.zip';
+
+      const url  = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href     = url;
+      link.download = fname;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      progressFill.classList.remove('progress-bar-animated');
+      progressFill.classList.add('bg-success');
+      setStatus('Descarga iniciada. Revisá tu carpeta de descargas.', 'text-success');
+
+    } catch (err) {
+      progressFill.classList.remove('progress-bar-animated');
+      progressFill.classList.add('bg-danger');
+      setStatus(err.message || 'Error inesperado.', 'text-danger');
+    } finally {
+      btnSplit.disabled = false;
+      setTimeout(() => {
+        progressBar.style.display = 'none';
+        progressFill.style.width  = '100%';
+        progressFill.classList.remove('bg-success', 'bg-danger');
+        progressFill.classList.add('progress-bar-animated');
+      }, 3000);
     }
   });
-  renderFileList();
-  // Si hay exactamente 1 archivo en rango, obtener páginas
-  if (currentMode === 'range' && selectedFiles.length === 1) {
-    fetchPageCount(selectedFiles[0]);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  function setStatus(msg, cls) {
+    statusMsg.textContent = msg;
+    statusMsg.className   = 'small mt-1 ' + (cls || '');
   }
-}
-
-function removeFile(idx) {
-  selectedFiles.splice(idx, 1);
-  renderFileList();
-  document.getElementById('pageCount').style.display = 'none';
-}
-
-function clearFiles() {
-  selectedFiles = [];
-  fileInput.value = '';
-  renderFileList();
-  document.getElementById('pageCount').style.display = 'none';
-  setStatus('');
-}
-
-function renderFileList() {
-  const list = document.getElementById('fileList');
-  const items = document.getElementById('fileItems');
-  const btn   = document.getElementById('btnSplit');
-
-  if (!selectedFiles.length) {
-    list.style.display = 'none';
-    btn.disabled = true;
-    return;
+  function fmtSize(bytes) {
+    if (bytes < 1024)        return bytes + ' B';
+    if (bytes < 1048576)     return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  list.style.display = '';
-  btn.disabled = false;
-  items.innerHTML = selectedFiles.map((f, i) => `
-    <div class="ia-file-item">
-      <span>📄</span>
-      <span class="fi-name" title="${esc(f.name)}">${esc(f.name)}</span>
-      <span class="fi-size">${fmtSize(f.size)}</span>
-      <button class="fi-remove" onclick="removeFile(${i})" title="Quitar">✕</button>
-    </div>
-  `).join('');
-}
-
-// ── Obtener cantidad de páginas (modo rango, 1 archivo) ────────────────────────
-async function fetchPageCount(file) {
-  const badge = document.getElementById('pageCount');
-  badge.style.display = 'none';
-  try {
-    const fd = new FormData();
-    fd.append('documento', file);
-    const r = await fetch('/pdf-toolkit/info', { method: 'POST', body: fd });
-    const data = await r.json();
-    if (data.paginas) {
-      badge.textContent = `${data.paginas} pág.`;
-      badge.style.display = '';
-      // Ajustar máximo de pageEnd
-      document.getElementById('pageEnd').max = data.paginas;
-      document.getElementById('pageStart').max = data.paginas;
-      if (parseInt(document.getElementById('pageEnd').value) > data.paginas) {
-        document.getElementById('pageEnd').value = data.paginas;
-      }
-    }
-  } catch {}
-}
-
-// ── Split ──────────────────────────────────────────────────────────────────────
-async function doSplit() {
-  if (!selectedFiles.length) return;
-
-  const btn = document.getElementById('btnSplit');
-  const bar = document.getElementById('progressBar');
-  const fill = document.getElementById('progressFill');
-
-  btn.disabled = true;
-  bar.style.display = '';
-  fill.style.width = '100%';
-  fill.classList.add('progress-bar-animated');
-
-  const count = selectedFiles.length;
-  const totalPags = currentMode === 'all'
-    ? 'todas las hojas'
-    : `páginas ${document.getElementById('pageStart').value}–${document.getElementById('pageEnd').value}`;
-  setStatus(`Procesando ${count} archivo(s)… (${totalPags})`, 'text-muted');
-
-  const fd = new FormData();
-  selectedFiles.forEach(f => fd.append('documents', f));
-  fd.append('mode', currentMode);
-  fd.append('page_start', document.getElementById('pageStart').value);
-  fd.append('page_end',   document.getElementById('pageEnd').value);
-
-  try {
-    const r = await fetch('/pdf-toolkit/split', { method: 'POST', body: fd });
-
-    if (!r.ok) {
-      let msg = `Error ${r.status}`;
-      try { const d = await r.json(); msg = d.error || msg; } catch {}
-      throw new Error(msg);
-    }
-
-    // Descargar el ZIP
-    const blob = await r.blob();
-    const disp  = r.headers.get('Content-Disposition') || '';
-    const match = disp.match(/filename=([^\s;]+)/);
-    const fname = match ? match[1] : 'hojas_separadas.zip';
-
-    const url  = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href     = url;
-    link.download = fname;
-    link.click();
-    URL.revokeObjectURL(url);
-
-    fill.style.width = '100%';
-    fill.classList.remove('progress-bar-animated');
-    fill.classList.add('bg-success');
-    setStatus('Descarga iniciada. Revisá tu carpeta de descargas.', 'text-success');
-
-  } catch (err) {
-    fill.classList.remove('progress-bar-animated');
-    fill.classList.add('bg-danger');
-    setStatus(err.message || 'Error inesperado.', 'text-danger');
-  } finally {
-    btn.disabled = false;
-    setTimeout(() => {
-      bar.style.display = 'none';
-      fill.style.width = '100%';
-      fill.classList.remove('bg-success', 'bg-danger');
-      fill.classList.add('progress-bar-animated');
-    }, 3000);
-  }
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function setStatus(msg, cls = '') {
-  const el = document.getElementById('statusMsg');
-  el.textContent = msg;
-  el.className = 'small mt-1 ' + cls;
-}
-function fmtSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
-}
-function esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// Actualizar pageCount cuando cambia el rango y hay 1 archivo
-document.getElementById('pageStart').addEventListener('change', () => {
-  if (currentMode === 'range' && selectedFiles.length === 1) fetchPageCount(selectedFiles[0]);
-});
+})();
 </script>
 {% endblock %}
