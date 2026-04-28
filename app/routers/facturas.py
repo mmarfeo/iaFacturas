@@ -60,6 +60,15 @@ async def planes_page(
     })
 
 
+@router.get("/app/inicio", response_class=HTMLResponse)
+async def inicio(request: Request, user=Depends(get_current_user)):
+    if not user:
+        return RedirectResponse("/auth/login", status_code=302)
+    return templates.TemplateResponse("app/inicio.html", {
+        "request": request, "user": user, "current_page": "inicio",
+    })
+
+
 @router.get("/app/dashboard", response_class=HTMLResponse)
 async def dashboard(
     request: Request,

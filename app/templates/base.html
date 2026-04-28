@@ -45,6 +45,10 @@
       <ul class="navbar-nav mx-auto mb-2 mb-md-0">
         {% if user %}
           <li class="nav-item">
+            <a class="nav-link ia-nav-link {% if current_page == 'inicio' %}active{% endif %}"
+               href="/app/inicio">🚀 Inicio</a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link ia-nav-link {% if current_page == 'dashboard' %}active{% endif %}"
                href="/app/dashboard">📊 Dashboard</a>
           </li>
