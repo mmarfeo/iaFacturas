@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% block title %}Herramientas PDF — IAFacturas{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:780px">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <div style="font-size:2.4rem;line-height:1">📄</div>
+    <div>
+      <h2 class="mb-0 fw-bold" style="font-size:1.6rem">Herramientas PDF</h2>
+      <p class="text-muted mb-0" style="font-size:.92rem">
+        Dividí PDF en páginas individuales — descargá todo como ZIP
+      </p>
+    </div>
+  </div>
+
+  <!-- Card principal -->
+  <div class="ia-card p-4">
+
+    <!-- Modo -->
+    <div class="mb-4">
+      <label class="form-label fw-semibold mb-2">Modo de división</label>
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="button" id="btnModeAll"
+                class="btn ia-btn-mode active"
+                onclick="setMode('all')">
+          📄 Todas las hojas
+        </button>
+        <button type="button" id="btnModeRange"
+                class="btn ia-btn-mode"
+                onclick="setMode('range')">
+          ✂️ Rango de páginas
+        </button>
+      </div>
+
+      <!-- Rango (oculto por defecto) -->
+      <div id="rangeRow" class="mt-3 d-none">
+        <div class="row g-2 align-items-end" style="max-width:340px">
+          <div class="col">
+            <label class="form-label small mb-1">Desde (pág.)</label>
+            <input type="number" id="pageStart" class="form-control form-control-sm"
+                   min="1" value="1" style="width:90px">
+          </div>
+          <div class="col-auto align-self-center pt-3 text-muted">—</div>
+          <div class="col">
+            <label class="form-label small mb-1">Hasta (pág.)</label>
+            <input type="number" id="pageEnd" class="form-control form-control-sm"
+                   min="1" value="1" style="width:90px">
+          </div>
+          <div class="col-auto align-self-end">
+            <span id="pageCount" class="badge bg-secondary" style="display:none"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drop zone -->
+    <div id="dropZone" class="ia-drop-zone mb-3"
+         onclick="fileInput.click()"
+         ondragover="onDragOver(event)"
+         ondragleave="onDragLeave(event)"
+         ondrop="onDrop(event)">
+      <div class="ia-drop-icon">📂</div>
+      <div class="ia-drop-title">Arrastrá o hacé clic para subir PDFs</div>
+      <div class="ia-drop-sub">Podés subir uno o varios archivos a la vez</div>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf,application/pdf"
+           multiple style="display:none" onchange="onFilesSelected(this.files)">
+
+    <!-- Lista de archivos -->
+    <div id="fileList" class="mb-3" style="display:none">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold small">Archivos seleccionados</span>
+        <button class="btn btn-link btn-sm p-0 text-danger" onclick="clearFiles()">
+          Limpiar
+        </button>
+      </div>
+      <div id="fileItems"></div>
+    </div>
+
+    <!-- Barra de progreso + botón -->
+    <div class="d-flex gap-2 align-items-center">
+      <div style="flex:1">
+        <div class="progress ia-progress" id="progressBar" style="display:none;height:10px">
+          <div class="progress-bar progress-bar-striped progress-bar-animated"
+               id="progressFill" role="progressbar" style="width:100%"></div>
+        </div>
+        <div id="statusMsg" class="small text-muted mt-1" style="min-height:1.2em"></div>
+      </div>
+      <button id="btnSplit" class="btn ia-btn-primary px-4"
+              onclick="doSplit()" disabled>
+        Dividir y descargar ZIP
+      </button>
+    </div>
+
+  </div><!-- /card -->
+
+  <!-- Info box -->
+  <div class="ia-card p-3 mt-3" style="font-size:.88rem;color:var(--ia-muted)">
+    <strong>¿Cómo funciona?</strong><br>
+    Subí uno o varios PDFs. Elegí si querés extraer <em>todas las hojas</em> o un
+    <em>rango específico</em> de páginas. Al hacer clic en
+    <strong>Dividir y descargar ZIP</strong> recibirás un archivo
+    <code>.zip</code> con un PDF por hoja, nombrados
+    <code>nombre_num_hoja_N.pdf</code>.
+  </div>
+
+</div><!-- /container -->
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Modo buttons ── */
+.ia-btn-mode {
+  border: 2px solid var(--ia-border, #dee2e6);
+  background: transparent;
+  color: var(--ia-text, #212529);
+  border-radius: 8px;
+  font-size: .9rem;
+  padding: .4rem 1rem;
+  transition: all .18s;
+}
+.ia-btn-mode.active {
+  background: var(--ia-primary, #6c4efc);
+  border-color: var(--ia-primary, #6c4efc);
+  color: #fff;
+}
+.ia-btn-mode:not(.active):hover {
+  border-color: var(--ia-primary, #6c4efc);
+  color: var(--ia-primary, #6c4efc);
+}
+
+/* ── Drop zone ── */
+.ia-drop-zone {
+  border: 2px dashed var(--ia-border, #dee2e6);
+  border-radius: 12px;
+  padding: 2rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .18s, background .18s;
+}
+.ia-drop-zone:hover,
+.ia-drop-zone.drag-over {
+  border-color: var(--ia-primary, #6c4efc);
+  background: rgba(108,78,252,.05);
+}
+.ia-drop-icon { font-size: 2.2rem; margin-bottom: .4rem; }
+.ia-drop-title { font-weight: 600; font-size: 1rem; }
+.ia-drop-sub { font-size: .84rem; color: var(--ia-muted, #6c757d); margin-top: .2rem; }
+
+/* ── File items ── */
+.ia-file-item {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .5rem .75rem;
+  border-radius: 8px;
+  background: var(--ia-surface2, rgba(108,78,252,.06));
+  margin-bottom: .4rem;
+  font-size: .88rem;
+}
+.ia-file-item .fi-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ia-file-item .fi-size { color: var(--ia-muted, #6c757d); white-space: nowrap; }
+.ia-file-item .fi-remove {
+  cursor: pointer;
+  color: var(--ia-muted, #6c757d);
+  font-size: 1rem;
+  line-height: 1;
+  border: none;
+  background: none;
+  padding: 0;
+}
+.ia-file-item .fi-remove:hover { color: #dc3545; }
+
+/* ── Progress ── */
+.ia-progress { border-radius: 6px; }
+.progress-bar { background: var(--ia-primary, #6c4efc); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const fileInput = document.getElementById('fileInput');
+let selectedFiles = [];
+let currentMode = 'all';
+
+// ── Modo ───────────────────────────────────────────────────────────────────────
+function setMode(m) {
+  currentMode = m;
+  document.getElementById('btnModeAll').classList.toggle('active', m === 'all');
+  document.getElementById('btnModeRange').classList.toggle('active', m === 'range');
+  document.getElementById('rangeRow').classList.toggle('d-none', m !== 'range');
+}
+
+// ── Drag & drop ────────────────────────────────────────────────────────────────
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.add('drag-over');
+}
+function onDragLeave(e) {
+  document.getElementById('dropZone').classList.remove('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag-over');
+  const files = [...e.dataTransfer.files].filter(f =>
+    f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+  );
+  if (files.length) addFiles(files);
+  else setStatus('Solo se aceptan archivos PDF.', 'text-danger');
+}
+function onFilesSelected(files) {
+  addFiles([...files]);
+}
+
+// ── Gestión de archivos ────────────────────────────────────────────────────────
+function addFiles(newFiles) {
+  const existing = new Set(selectedFiles.map(f => f.name + f.size));
+  newFiles.forEach(f => {
+    if (!existing.has(f.name + f.size)) {
+      selectedFiles.push(f);
+      existing.add(f.name + f.size);
+    }
+  });
+  renderFileList();
+  // Si hay exactamente 1 archivo en rango, obtener páginas
+  if (currentMode === 'range' && selectedFiles.length === 1) {
+    fetchPageCount(selectedFiles[0]);
+  }
+}
+
+function removeFile(idx) {
+  selectedFiles.splice(idx, 1);
+  renderFileList();
+  document.getElementById('pageCount').style.display = 'none';
+}
+
+function clearFiles() {
+  selectedFiles = [];
+  fileInput.value = '';
+  renderFileList();
+  document.getElementById('pageCount').style.display = 'none';
+  setStatus('');
+}
+
+function renderFileList() {
+  const list = document.getElementById('fileList');
+  const items = document.getElementById('fileItems');
+  const btn   = document.getElementById('btnSplit');
+
+  if (!selectedFiles.length) {
+    list.style.display = 'none';
+    btn.disabled = true;
+    return;
+  }
+
+  list.style.display = '';
+  btn.disabled = false;
+  items.innerHTML = selectedFiles.map((f, i) => `
+    <div class="ia-file-item">
+      <span>📄</span>
+      <span class="fi-name" title="${esc(f.name)}">${esc(f.name)}</span>
+      <span class="fi-size">${fmtSize(f.size)}</span>
+      <button class="fi-remove" onclick="removeFile(${i})" title="Quitar">✕</button>
+    </div>
+  `).join('');
+}
+
+// ── Obtener cantidad de páginas (modo rango, 1 archivo) ────────────────────────
+async function fetchPageCount(file) {
+  const badge = document.getElementById('pageCount');
+  badge.style.display = 'none';
+  try {
+    const fd = new FormData();
+    fd.append('documento', file);
+    const r = await fetch('/pdf-toolkit/info', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (data.paginas) {
+      badge.textContent = `${data.paginas} pág.`;
+      badge.style.display = '';
+      // Ajustar máximo de pageEnd
+      document.getElementById('pageEnd').max = data.paginas;
+      document.getElementById('pageStart').max = data.paginas;
+      if (parseInt(document.getElementById('pageEnd').value) > data.paginas) {
+        document.getElementById('pageEnd').value = data.paginas;
+      }
+    }
+  } catch {}
+}
+
+// ── Split ──────────────────────────────────────────────────────────────────────
+async function doSplit() {
+  if (!selectedFiles.length) return;
+
+  const btn = document.getElementById('btnSplit');
+  const bar = document.getElementById('progressBar');
+  const fill = document.getElementById('progressFill');
+
+  btn.disabled = true;
+  bar.style.display = '';
+  fill.style.width = '100%';
+  fill.classList.add('progress-bar-animated');
+
+  const count = selectedFiles.length;
+  const totalPags = currentMode === 'all'
+    ? 'todas las hojas'
+    : `páginas ${document.getElementById('pageStart').value}–${document.getElementById('pageEnd').value}`;
+  setStatus(`Procesando ${count} archivo(s)… (${totalPags})`, 'text-muted');
+
+  const fd = new FormData();
+  selectedFiles.forEach(f => fd.append('documents', f));
+  fd.append('mode', currentMode);
+  fd.append('page_start', document.getElementById('pageStart').value);
+  fd.append('page_end',   document.getElementById('pageEnd').value);
+
+  try {
+    const r = await fetch('/pdf-toolkit/split', { method: 'POST', body: fd });
+
+    if (!r.ok) {
+      let msg = `Error ${r.status}`;
+      try { const d = await r.json(); msg = d.error || msg; } catch {}
+      throw new Error(msg);
+    }
+
+    // Descargar el ZIP
+    const blob = await r.blob();
+    const disp  = r.headers.get('Content-Disposition') || '';
+    const match = disp.match(/filename=([^\s;]+)/);
+    const fname = match ? match[1] : 'hojas_separadas.zip';
+
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href     = url;
+    link.download = fname;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    fill.style.width = '100%';
+    fill.classList.remove('progress-bar-animated');
+    fill.classList.add('bg-success');
+    setStatus('Descarga iniciada. Revisá tu carpeta de descargas.', 'text-success');
+
+  } catch (err) {
+    fill.classList.remove('progress-bar-animated');
+    fill.classList.add('bg-danger');
+    setStatus(err.message || 'Error inesperado.', 'text-danger');
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => {
+      bar.style.display = 'none';
+      fill.style.width = '100%';
+      fill.classList.remove('bg-success', 'bg-danger');
+      fill.classList.add('progress-bar-animated');
+    }, 3000);
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setStatus(msg, cls = '') {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = 'small mt-1 ' + cls;
+}
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Actualizar pageCount cuando cambia el rango y hay 1 archivo
+document.getElementById('pageStart').addEventListener('change', () => {
+  if (currentMode === 'range' && selectedFiles.length === 1) fetchPageCount(selectedFiles[0]);
+});
+</script>
+{% endblock %}
