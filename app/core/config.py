@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     mercadopago_access_token: Optional[str] = None
     mercadopago_webhook_secret: Optional[str] = None
 
+    # VPS document-ai (extracción con plantillas)
+    vps_extract_url: str = "http://localhost:8001"
+
     # OCR
     ocr_dpi: int = 200            # DPI para escaneos
     ocr_dpi_photo: int = 300      # DPI para fotos de celular

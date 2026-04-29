@@ -1,0 +1,1047 @@
+{% extends "base.html" %}
+{% block title %}Plantillas de extracción — IAFacturas{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<style>
+/* ── Layout editor ── */
+#editorWrap {
+  display: flex;
+  height: calc(100vh - 130px);
+  min-height: 500px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--bs-border-color);
+}
+
+/* ── Panel izquierdo ── */
+#leftPanel {
+  width: 280px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--bs-border-color);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--bs-body-bg);
+}
+#leftPanel .lp-section {
+  padding: .9rem 1rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+#leftPanel .lp-title {
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--ia-muted, #6c757d);
+  margin-bottom: .55rem;
+}
+
+/* ── Zona list ── */
+.zone-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .35rem .5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: .84rem;
+  transition: background .12s;
+  border: 1px solid transparent;
+}
+.zone-item:hover { background: var(--ia-surface2, rgba(108,78,252,.06)); }
+.zone-item.selected {
+  background: rgba(108,78,252,.1);
+  border-color: var(--ia-primary, #6c4efc);
+}
+.zone-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.zone-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zone-type-badge {
+  font-size: .65rem;
+  padding: 1px 5px;
+  border-radius: 10px;
+  background: var(--ia-surface2, rgba(108,78,252,.08));
+  color: var(--ia-muted, #6c757d);
+  flex-shrink: 0;
+}
+.zone-del {
+  border: none; background: none; padding: 0 2px;
+  color: var(--ia-muted, #6c757d); cursor: pointer; font-size: .9rem; flex-shrink: 0;
+}
+.zone-del:hover { color: #dc3545; }
+
+/* ── Panel derecho ── */
+#rightPanel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bs-body-bg);
+}
+
+/* ── Toolbar ── */
+#pdfToolbar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .45rem .75rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  background: var(--bs-body-bg);
+}
+#pdfToolbar .tb-btn {
+  border: 1px solid var(--bs-border-color);
+  background: transparent;
+  border-radius: 5px;
+  padding: 1px 8px;
+  font-size: .82rem;
+  cursor: pointer;
+  line-height: 1.6;
+  transition: background .12s, border-color .12s;
+  color: var(--bs-body-color);
+}
+#pdfToolbar .tb-btn:hover:not(:disabled) {
+  background: rgba(108,78,252,.07);
+  border-color: var(--ia-primary, #6c4efc);
+}
+#pdfToolbar .tb-btn:disabled { opacity: .4; cursor: default; }
+#zoomLabel2 { font-size: .8rem; min-width: 2.8rem; text-align: center; color: var(--ia-muted, #6c757d); }
+
+/* ── PDF area ── */
+#pdfArea {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: #e9e9e9;
+}
+[data-bs-theme="dark"] #pdfArea { background: #1e1e1e; }
+
+/* ── Drop zone (dentro del panel) ── */
+#dropZoneEditor {
+  border: 2px dashed var(--ia-border, #dee2e6);
+  border-radius: 12px;
+  padding: 3rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .18s, background .18s;
+  margin: 2rem auto;
+  max-width: 420px;
+}
+#dropZoneEditor:hover, #dropZoneEditor.drag-over {
+  border-color: var(--ia-primary, #6c4efc);
+  background: rgba(108,78,252,.05);
+}
+
+/* ── PDF wrapper + overlay ── */
+#pdfWrapper {
+  display: none;
+  position: relative;
+  margin: 1rem auto;
+  width: fit-content;
+  transform-origin: top left;
+}
+#pdfImg { display: block; }
+#overlayContainer {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  cursor: crosshair;
+}
+
+/* ── Zone overlays ── */
+.zone-overlay-div {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+.zone-overlay-label {
+  position: absolute;
+  top: -20px; left: 0;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+.zone-handle-dot {
+  position: absolute;
+  width: 8px; height: 8px;
+  background: #3b82f6;
+  border: 2px solid #fff;
+  border-radius: 2px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  z-index: 11;
+}
+
+/* ── Draw rect temporal ── */
+#drawTempRect {
+  position: absolute;
+  border: 2px dashed #3b82f6;
+  background: rgba(59,130,246,.12);
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* ── Hint bar ── */
+#hintBar {
+  padding: .4rem .75rem;
+  font-size: .78rem;
+  color: var(--ia-muted, #6c757d);
+  border-top: 1px solid var(--bs-border-color);
+  flex-shrink: 0;
+  background: rgba(108,78,252,.04);
+}
+
+/* ── Extract results ── */
+#extractResults table { font-size: .84rem; }
+#extractResults td:first-child { font-weight: 600; color: var(--ia-primary, #6c4efc); }
+
+/* ── Custom dialog ── */
+#customDialog {
+  border: none;
+  border-radius: 10px;
+  padding: 0;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+  min-width: 320px;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+}
+#customDialog::backdrop { background: rgba(0,0,0,.45); }
+.cd-body { padding: 1.25rem 1.5rem; }
+.cd-label { font-size: .9rem; font-weight: 600; margin-bottom: .5rem; }
+.cd-input { width: 100%; padding: .4rem .6rem; border: 1px solid var(--bs-border-color); border-radius: 6px; font-size: .9rem; background: var(--bs-body-bg); color: var(--bs-body-color); }
+.cd-actions { display: flex; justify-content: flex-end; gap: .5rem; padding: .75rem 1.5rem; border-top: 1px solid var(--bs-border-color); }
+.cd-btn { padding: .35rem .9rem; border-radius: 6px; border: 1px solid var(--bs-border-color); cursor: pointer; font-size: .88rem; background: transparent; color: var(--bs-body-color); }
+.cd-btn.primary { background: var(--ia-primary, #6c4efc); border-color: var(--ia-primary, #6c4efc); color: #fff; }
+
+/* ── Buttons extra ── */
+.ia-btn-sm-primary {
+  background: var(--ia-primary, #6c4efc);
+  border: none; color: #fff;
+  border-radius: 7px; padding: .3rem .75rem;
+  font-size: .84rem; cursor: pointer;
+  transition: opacity .15s;
+}
+.ia-btn-sm-primary:hover { opacity: .88; }
+.ia-btn-sm-primary:disabled { opacity: .4; cursor: default; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-xl py-3" style="max-width:1200px">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <div style="font-size:2rem;line-height:1">🗂️</div>
+    <div>
+      <h2 class="mb-0 fw-bold" style="font-size:1.5rem">Plantillas de extracción</h2>
+      <p class="text-muted mb-0" style="font-size:.88rem">
+        Dibujá zonas sobre el PDF para definir qué campos extraer
+      </p>
+    </div>
+  </div>
+
+  <!-- Editor principal -->
+  <div id="editorWrap">
+
+    <!-- ── Panel izquierdo ──────────────────────────────────────── -->
+    <div id="leftPanel">
+
+      <!-- Plantillas guardadas -->
+      <div class="lp-section">
+        <div class="lp-title">Plantillas guardadas</div>
+        <select id="templateSelect" class="form-select form-select-sm mb-2">
+          <option value="">-- Seleccionar --</option>
+        </select>
+        <div class="d-flex gap-1">
+          <button id="btnLoadTemplate"   class="btn btn-sm btn-outline-secondary" style="flex:1">Cargar</button>
+          <button id="btnDeleteTemplate" class="btn btn-sm btn-outline-danger">Eliminar</button>
+        </div>
+      </div>
+
+      <!-- Zonas -->
+      <div class="lp-section" style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="lp-title mb-0">Zonas <span id="zoneCount" class="badge bg-secondary ms-1">0</span></div>
+          <button id="btnAddZone" class="ia-btn-sm-primary">+ Zona</button>
+        </div>
+        <div id="zoneList" style="flex:1;overflow-y:auto"></div>
+      </div>
+
+      <!-- Acciones -->
+      <div class="lp-section">
+        <button id="btnSaveTemplate" class="btn ia-btn-primary w-100 mb-2" disabled>
+          Guardar plantilla
+        </button>
+        <button id="btnClearZones" class="btn btn-outline-danger btn-sm w-100">Limpiar zonas</button>
+      </div>
+
+    </div>
+    <!-- /leftPanel -->
+
+    <!-- ── Panel derecho ─────────────────────────────────────────── -->
+    <div id="rightPanel">
+
+      <!-- Toolbar -->
+      <div id="pdfToolbar">
+        <span id="pdfFileName" class="small text-muted" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          Ningún archivo cargado
+        </span>
+        <!-- Page nav -->
+        <button class="tb-btn" id="btnPrevPage" disabled>‹</button>
+        <span id="pageIndicator" class="small" style="min-width:4rem;text-align:center">—</span>
+        <button class="tb-btn" id="btnNextPage" disabled>›</button>
+        <div style="width:1px;height:16px;background:var(--bs-border-color);margin:0 2px"></div>
+        <!-- Zoom -->
+        <button class="tb-btn" id="btnZoomOut2" disabled>−</button>
+        <span id="zoomLabel2">100%</span>
+        <button class="tb-btn" id="btnZoomIn2"  disabled>+</button>
+        <button class="tb-btn" id="btnZoomReset2" disabled style="font-size:.7rem">↺</button>
+        <div style="width:1px;height:16px;background:var(--bs-border-color);margin:0 2px"></div>
+        <!-- Extract -->
+        <button class="ia-btn-sm-primary" id="btnExtract" disabled>Vista previa extracción</button>
+      </div>
+
+      <!-- PDF area -->
+      <div id="pdfArea">
+        <!-- Drop zone -->
+        <div id="dropZoneEditor">
+          <div style="font-size:2.2rem;margin-bottom:.4rem">📂</div>
+          <div style="font-weight:600;font-size:1rem">Arrastrá o hacé clic para subir un PDF</div>
+          <div style="font-size:.84rem;color:var(--ia-muted,#6c757d);margin-top:.2rem">Se admiten PDF e imágenes (PNG, JPG)</div>
+        </div>
+        <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/*" style="display:none">
+
+        <!-- PDF wrapper + overlay -->
+        <div id="pdfWrapper">
+          <img id="pdfImg" alt="PDF page">
+          <div id="overlayContainer"></div>
+        </div>
+
+        <div id="pdfLoading" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:.95rem;color:var(--ia-muted,#6c757d)">
+          ⏳ Renderizando…
+        </div>
+      </div>
+
+      <!-- Hint bar -->
+      <div id="hintBar">
+        <kbd>Shift</kbd> + arrastrar para dibujar una zona &nbsp;·&nbsp;
+        Clic en zona para seleccionar &nbsp;·&nbsp;
+        Arrastrar zona para mover &nbsp;·&nbsp;
+        <kbd>Ctrl</kbd>+scroll para zoom
+      </div>
+
+    </div>
+    <!-- /rightPanel -->
+
+  </div>
+  <!-- /editorWrap -->
+
+  <!-- Extract results -->
+  <div id="extractResultsWrap" class="ia-card p-3 mt-3" style="display:none">
+    <div class="fw-semibold mb-2" style="font-size:.9rem">Resultado de extracción</div>
+    <div id="extractResults"></div>
+    <div id="extractStatus" class="small text-muted mt-1"></div>
+  </div>
+
+</div>
+
+<!-- Custom dialog (reemplaza window.prompt) -->
+<dialog id="customDialog">
+  <div class="cd-body">
+    <div class="cd-label" id="cdLabel">Nombre:</div>
+    <input class="cd-input" id="cdInput" type="text">
+  </div>
+  <div class="cd-actions">
+    <button class="cd-btn" id="cdCancel">Cancelar</button>
+    <button class="cd-btn primary" id="cdOk">Aceptar</button>
+  </div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+'use strict';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+// ── DOM refs ───────────────────────────────────────────────────────────────────
+const dropZone         = document.getElementById('dropZoneEditor');
+const fileInput        = document.getElementById('fileInput');
+const pdfWrapper       = document.getElementById('pdfWrapper');
+const pdfImg           = document.getElementById('pdfImg');
+const overlayEl        = document.getElementById('overlayContainer');
+const pdfArea          = document.getElementById('pdfArea');
+const pdfLoading       = document.getElementById('pdfLoading');
+const pdfFileName      = document.getElementById('pdfFileName');
+const pageIndicator    = document.getElementById('pageIndicator');
+const btnPrevPage      = document.getElementById('btnPrevPage');
+const btnNextPage      = document.getElementById('btnNextPage');
+const btnZoomOut       = document.getElementById('btnZoomOut2');
+const btnZoomIn        = document.getElementById('btnZoomIn2');
+const btnZoomReset     = document.getElementById('btnZoomReset2');
+const zoomLabel        = document.getElementById('zoomLabel2');
+const btnExtract       = document.getElementById('btnExtract');
+const btnAddZone       = document.getElementById('btnAddZone');
+const btnClearZones    = document.getElementById('btnClearZones');
+const btnSaveTemplate  = document.getElementById('btnSaveTemplate');
+const btnLoadTemplate  = document.getElementById('btnLoadTemplate');
+const btnDeleteTemplate= document.getElementById('btnDeleteTemplate');
+const templateSelect   = document.getElementById('templateSelect');
+const zoneList         = document.getElementById('zoneList');
+const zoneCount        = document.getElementById('zoneCount');
+const extractResultsWrap = document.getElementById('extractResultsWrap');
+const extractResults   = document.getElementById('extractResults');
+const extractStatus    = document.getElementById('extractStatus');
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let zones          = [];          // { id, name, type, extraction_type, x0, y0, x1, y1, drawn_on_page, page_range }
+let selectedZoneId = null;
+let pdfDoc         = null;
+let currentPage    = 1;
+let numPages       = 0;
+let pdfDimensions  = { width: 0, height: 0, pageWidthPts: 0, pageHeightPts: 0, scale: 2.5 };
+let zoomPct        = 100;
+let loadedFile     = null;        // File object
+let loadedTemplateId = null;
+
+// ── Zone colors (round-robin) ──────────────────────────────────────────────────
+const ZONE_COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#8b5cf6','#ec4899','#14b8a6'];
+function zoneColor(idx) { return ZONE_COLORS[idx % ZONE_COLORS.length]; }
+
+// ── Custom prompt dialog ───────────────────────────────────────────────────────
+const dlg      = document.getElementById('customDialog');
+const cdLabel  = document.getElementById('cdLabel');
+const cdInput  = document.getElementById('cdInput');
+const cdOk     = document.getElementById('cdOk');
+const cdCancel = document.getElementById('cdCancel');
+
+function customPrompt(label, defaultVal = '') {
+  return new Promise((resolve) => {
+    cdLabel.textContent = label;
+    cdInput.value = defaultVal;
+    dlg.showModal();
+    cdInput.select();
+
+    const cleanup = () => { dlg.close(); cdOk.onclick = null; cdCancel.onclick = null; };
+    cdOk.onclick = () => { cleanup(); resolve(cdInput.value.trim() || null); };
+    cdCancel.onclick = () => { cleanup(); resolve(null); };
+    cdInput.onkeydown = (e) => { if (e.key === 'Enter') cdOk.click(); if (e.key === 'Escape') cdCancel.click(); };
+  });
+}
+
+// ── File upload ────────────────────────────────────────────────────────────────
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover',  (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); });
+
+async function loadFile(file) {
+  loadedFile = file;
+  pdfFileName.textContent = file.name;
+  zones = []; selectedZoneId = null; currentPage = 1;
+  renderZonesList();
+  dropZone.style.display = 'none';
+  pdfWrapper.style.display = 'none';
+  pdfLoading.style.display = '';
+
+  if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+    const buf = await file.arrayBuffer();
+    pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+    numPages = pdfDoc.numPages;
+    await renderPage(1);
+  } else {
+    // Image
+    pdfDoc = null; numPages = 1;
+    const url = URL.createObjectURL(file);
+    pdfImg.onload = () => {
+      pdfDimensions = {
+        width: pdfImg.naturalWidth, height: pdfImg.naturalHeight,
+        pageWidthPts: pdfImg.naturalWidth, pageHeightPts: pdfImg.naturalHeight,
+        scale: 1,
+      };
+      pdfLoading.style.display = 'none';
+      showPdfWrapper();
+    };
+    pdfImg.src = url;
+  }
+}
+
+async function renderPage(pageNum) {
+  if (!pdfDoc) return;
+  pdfLoading.style.display = '';
+  pdfWrapper.style.display = 'none';
+
+  const page      = await pdfDoc.getPage(pageNum);
+  const SCALE     = 2.5;
+  const viewport  = page.getViewport({ scale: SCALE });
+  const realVp    = page.getViewport({ scale: 1.0 });
+
+  const canvas    = document.createElement('canvas');
+  canvas.width    = viewport.width;
+  canvas.height   = viewport.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+
+  pdfImg.src = canvas.toDataURL('image/png');
+  pdfImg.width  = viewport.width;
+  pdfImg.height = viewport.height;
+
+  pdfDimensions = {
+    width: viewport.width, height: viewport.height,
+    pageWidthPts: realVp.width, pageHeightPts: realVp.height,
+    scale: SCALE,
+  };
+
+  currentPage = pageNum;
+  pdfLoading.style.display = 'none';
+  showPdfWrapper();
+}
+
+function showPdfWrapper() {
+  pdfWrapper.style.display = '';
+  applyZoom();
+  updatePageNav();
+  setupZoneDrawing();
+  renderZonesOnCanvas();
+  enableToolbarBtns(true);
+}
+
+// ── Zoom ───────────────────────────────────────────────────────────────────────
+function applyZoom() {
+  const z = zoomPct / 100;
+  pdfWrapper.style.transform = `scale(${z})`;
+  // Ajustar el scroll container para que ocupe el tamaño escalado
+  pdfWrapper.style.marginBottom = ((pdfDimensions.height * z) - pdfDimensions.height) + 'px';
+  pdfWrapper.style.marginRight  = ((pdfDimensions.width  * z) - pdfDimensions.width)  + 'px';
+  zoomLabel.textContent = zoomPct + '%';
+}
+
+btnZoomIn.addEventListener('click',    () => { zoomPct = Math.min(400, zoomPct + 25); applyZoom(); });
+btnZoomOut.addEventListener('click',   () => { zoomPct = Math.max(25,  zoomPct - 25); applyZoom(); });
+btnZoomReset.addEventListener('click', () => { zoomPct = 100; applyZoom(); });
+pdfArea.addEventListener('wheel', (e) => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  zoomPct = Math.min(400, Math.max(25, zoomPct + (e.deltaY < 0 ? 25 : -25)));
+  applyZoom();
+}, { passive: false });
+
+// ── Page navigation ────────────────────────────────────────────────────────────
+function updatePageNav() {
+  pageIndicator.textContent = numPages > 1 ? `${currentPage} / ${numPages}` : '1 pág.';
+  btnPrevPage.disabled = currentPage <= 1;
+  btnNextPage.disabled = currentPage >= numPages;
+}
+btnPrevPage.addEventListener('click', () => { if (currentPage > 1) renderPage(currentPage - 1); });
+btnNextPage.addEventListener('click', () => { if (currentPage < numPages) renderPage(currentPage + 1); });
+
+function enableToolbarBtns(on) {
+  [btnZoomIn, btnZoomOut, btnZoomReset, btnExtract].forEach(b => b.disabled = !on);
+  updateSaveBtn();
+}
+
+// ── Zone drawing (Shift + drag) ────────────────────────────────────────────────
+let isDrawing = false, drawStartX = 0, drawStartY = 0;
+let drawTempRect = null;
+
+function screenToCanvas(screenX, screenY) {
+  const rect = overlayEl.getBoundingClientRect();
+  return {
+    x: (screenX - rect.left) * pdfDimensions.width  / rect.width,
+    y: (screenY - rect.top)  * pdfDimensions.height / rect.height,
+  };
+}
+
+function setupZoneDrawing() {
+  // Clone overlay to reset listeners
+  const newOverlay = overlayEl.cloneNode(false);
+  overlayEl.parentNode.replaceChild(newOverlay, overlayEl);
+  // Re-assign so the reference stays valid
+  Object.assign(overlayEl, newOverlay); // won't work since const - use a workaround:
+  // (We actually keep a reference via the parent)
+  const ov = document.getElementById('overlayContainer');
+
+  ov.addEventListener('mousedown', onDrawMouseDown);
+  ov.addEventListener('mousemove', onDrawMouseMove);
+  ov.addEventListener('mouseup',   onDrawMouseUp);
+  ov.addEventListener('selectstart', (e) => { if (isDrawing) e.preventDefault(); });
+  mountZoneInteractionListeners(ov);
+}
+
+// We need overlayEl to always point to the current overlay element.
+// Since we clone it, let's use a getter approach:
+function getOverlay() { return document.getElementById('overlayContainer'); }
+
+function onDrawMouseDown(e) {
+  if (!e.shiftKey) return;
+  const target = e.target;
+  if (target.classList.contains('zone-overlay-div') ||
+      target.classList.contains('zone-handle-dot') ||
+      target !== getOverlay()) return;
+
+  isDrawing = true;
+  const c = screenToCanvas(e.clientX, e.clientY);
+  drawStartX = c.x; drawStartY = c.y;
+
+  drawTempRect = document.createElement('div');
+  drawTempRect.id = 'drawTempRect';
+  drawTempRect.style.left   = drawStartX + 'px';
+  drawTempRect.style.top    = drawStartY + 'px';
+  drawTempRect.style.width  = '0px';
+  drawTempRect.style.height = '0px';
+  getOverlay().appendChild(drawTempRect);
+  e.preventDefault(); e.stopPropagation();
+}
+
+function onDrawMouseMove(e) {
+  if (!isDrawing || !drawTempRect) return;
+  const c = screenToCanvas(e.clientX, e.clientY);
+  const x = Math.min(drawStartX, c.x);
+  const y = Math.min(drawStartY, c.y);
+  const w = Math.abs(c.x - drawStartX);
+  const h = Math.abs(c.y - drawStartY);
+  drawTempRect.style.left   = x + 'px';
+  drawTempRect.style.top    = y + 'px';
+  drawTempRect.style.width  = w + 'px';
+  drawTempRect.style.height = h + 'px';
+}
+
+async function onDrawMouseUp(e) {
+  if (!isDrawing) return;
+  isDrawing = false;
+  if (drawTempRect && drawTempRect.parentNode) drawTempRect.parentNode.removeChild(drawTempRect);
+  drawTempRect = null;
+
+  const c = screenToCanvas(e.clientX, e.clientY);
+  const x = Math.min(drawStartX, c.x);
+  const y = Math.min(drawStartY, c.y);
+  const w = Math.abs(c.x - drawStartX);
+  const h = Math.abs(c.y - drawStartY);
+  if (w < 10 || h < 10) return;
+
+  const defaultName = `zona_${zones.length + 1}`;
+  const name = await customPrompt('Nombre de la zona:', defaultName);
+  if (!name) return;
+
+  const exType = await customPrompt('Tipo de extracción (text / table):', 'text');
+
+  zones.push({
+    id: 'z_' + Date.now() + '_' + Math.random().toString(36).substr(2,6),
+    name: name.toLowerCase().replace(/\s+/g, '_'),
+    type: 'rect',
+    extraction_type: exType === 'table' ? 'table' : 'text',
+    x0: x, y0: y, x1: x + w, y1: y + h,
+    drawn_on_page: currentPage - 1,
+    page_range: String(currentPage),
+  });
+  renderZonesList();
+  renderZonesOnCanvas();
+  updateSaveBtn();
+}
+
+// ── Zone move/resize interaction ───────────────────────────────────────────────
+const HANDLE_SIZE = 8;
+let zoneInteraction = null; // { mode, zoneId, handleIndex, startX, startY, original }
+
+function getHandlePoints(x, y, w, h) {
+  const cx = x + w/2, cy = y + h/2;
+  return [
+    {x, y},          {x: cx, y},       {x: x+w, y},
+    {x: x+w, y: cy}, {x: x+w, y: y+h}, {x: cx, y: y+h},
+    {x, y: y+h},     {x, y: cy},
+  ];
+}
+const CURSOR_NAMES = ['nw-resize','n-resize','ne-resize','e-resize','se-resize','s-resize','sw-resize','w-resize'];
+
+function mountZoneInteractionListeners(ov) {
+  ov.addEventListener('mousedown', (e) => {
+    const target = e.target;
+    if (target.classList.contains('zone-handle-dot')) {
+      const zoneId = target.dataset.zoneId;
+      const hi     = parseInt(target.dataset.hi);
+      const zone   = zones.find(z => z.id === zoneId);
+      if (!zone) return;
+      e.stopPropagation(); e.preventDefault();
+      zoneInteraction = { mode:'resizing', zoneId, handleIndex: hi, original: {...zone} };
+      return;
+    }
+    if (target.classList.contains('zone-overlay-div')) {
+      const zoneId = target.dataset.zoneId;
+      selectZone(zoneId);
+      zoneInteraction = {
+        mode: 'moving', zoneId,
+        startX: screenToCanvas(e.clientX, e.clientY).x,
+        startY: screenToCanvas(e.clientX, e.clientY).y,
+        original: {...zones.find(z => z.id === zoneId)},
+      };
+      e.stopPropagation();
+      return;
+    }
+    if (target === ov && !e.shiftKey) {
+      selectedZoneId = null;
+      renderZonesList();
+      renderZonesOnCanvas();
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!zoneInteraction) return;
+    const zone = zones.find(z => z.id === zoneInteraction.zoneId);
+    if (!zone) return;
+    const c = screenToCanvas(e.clientX, e.clientY);
+
+    if (zoneInteraction.mode === 'moving') {
+      const dx = c.x - zoneInteraction.startX;
+      const dy = c.y - zoneInteraction.startY;
+      const w = zoneInteraction.original.x1 - zoneInteraction.original.x0;
+      const h = zoneInteraction.original.y1 - zoneInteraction.original.y0;
+      zone.x0 = Math.max(0, Math.min(zoneInteraction.original.x0 + dx, pdfDimensions.width  - w));
+      zone.y0 = Math.max(0, Math.min(zoneInteraction.original.y0 + dy, pdfDimensions.height - h));
+      zone.x1 = zone.x0 + w;
+      zone.y1 = zone.y0 + h;
+    } else if (zoneInteraction.mode === 'resizing') {
+      const orig = zoneInteraction.original;
+      const clamp = (v, mn, mx) => Math.min(Math.max(v, mn), mx);
+      const MIN = 20;
+      switch (zoneInteraction.handleIndex) {
+        case 0: zone.x0 = clamp(c.x, 0, zone.x1-MIN); zone.y0 = clamp(c.y, 0, zone.y1-MIN); break;
+        case 1: zone.y0 = clamp(c.y, 0, zone.y1-MIN); break;
+        case 2: zone.x1 = clamp(c.x, zone.x0+MIN, pdfDimensions.width); zone.y0 = clamp(c.y, 0, zone.y1-MIN); break;
+        case 3: zone.x1 = clamp(c.x, zone.x0+MIN, pdfDimensions.width); break;
+        case 4: zone.x1 = clamp(c.x, zone.x0+MIN, pdfDimensions.width); zone.y1 = clamp(c.y, zone.y0+MIN, pdfDimensions.height); break;
+        case 5: zone.y1 = clamp(c.y, zone.y0+MIN, pdfDimensions.height); break;
+        case 6: zone.x0 = clamp(c.x, 0, zone.x1-MIN); zone.y1 = clamp(c.y, zone.y0+MIN, pdfDimensions.height); break;
+        case 7: zone.x0 = clamp(c.x, 0, zone.x1-MIN); break;
+      }
+    }
+    renderZonesOnCanvas();
+  });
+
+  document.addEventListener('mouseup', () => { zoneInteraction = null; });
+}
+
+// ── Render zones on canvas overlay ────────────────────────────────────────────
+function renderZonesOnCanvas() {
+  const ov = getOverlay();
+  if (!ov) return;
+  // Remove existing zone divs
+  Array.from(ov.querySelectorAll('.zone-overlay-div, .zone-handle-dot')).forEach(el => el.remove());
+
+  zones.forEach((zone, idx) => {
+    const isOnPage = (zone.page_range === 'all' || zone.drawn_on_page === currentPage - 1);
+    if (!isOnPage) return;
+    const x = zone.x0, y = zone.y0, w = zone.x1 - zone.x0, h = zone.y1 - zone.y0;
+    if (w <= 0 || h <= 0) return;
+
+    const isSelected = zone.id === selectedZoneId;
+    const color = zoneColor(idx);
+
+    const div = document.createElement('div');
+    div.className = 'zone-overlay-div';
+    div.dataset.zoneId = zone.id;
+    div.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;` +
+      `border:2px ${isSelected ? 'solid' : 'dashed'} ${color};` +
+      `background:${color}22;cursor:${isSelected ? 'move' : 'pointer'};`;
+
+    const label = document.createElement('span');
+    label.className = 'zone-overlay-label';
+    label.textContent = zone.name.toUpperCase();
+    label.style.background = color;
+    div.appendChild(label);
+    ov.appendChild(div);
+
+    if (isSelected) {
+      const pts = getHandlePoints(x, y, w, h);
+      pts.forEach((pt, hi) => {
+        const h2 = document.createElement('div');
+        h2.className = 'zone-handle-dot';
+        h2.dataset.zoneId = zone.id;
+        h2.dataset.hi = hi;
+        h2.style.cssText = `left:${pt.x - HANDLE_SIZE/2}px;top:${pt.y - HANDLE_SIZE/2}px;` +
+          `cursor:${CURSOR_NAMES[hi]};`;
+        ov.appendChild(h2);
+      });
+    }
+  });
+}
+
+// ── Render zones list (left panel) ────────────────────────────────────────────
+function renderZonesList() {
+  zoneCount.textContent = zones.length;
+  if (!zones.length) {
+    zoneList.innerHTML = '<div class="text-muted" style="font-size:.8rem;padding:.3rem .2rem">Sin zonas. Dibujá sobre el PDF.</div>';
+    return;
+  }
+  zoneList.innerHTML = zones.map((z, idx) => `
+    <div class="zone-item ${z.id === selectedZoneId ? 'selected' : ''}" data-zone-id="${z.id}">
+      <div class="zone-dot" style="background:${zoneColor(idx)}"></div>
+      <span class="zone-name" title="${z.name}">${z.name}</span>
+      <span class="zone-type-badge">${z.extraction_type}</span>
+      <button class="zone-del" data-del="${z.id}" title="Eliminar">✕</button>
+    </div>
+  `).join('');
+
+  zoneList.querySelectorAll('.zone-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.classList.contains('zone-del')) return;
+      selectZone(el.dataset.zoneId);
+    });
+  });
+  zoneList.querySelectorAll('.zone-del').forEach(btn => {
+    btn.addEventListener('click', () => deleteZone(btn.dataset.del));
+  });
+}
+
+function selectZone(id) {
+  selectedZoneId = id;
+  renderZonesList();
+  renderZonesOnCanvas();
+}
+
+function deleteZone(id) {
+  zones = zones.filter(z => z.id !== id);
+  if (selectedZoneId === id) selectedZoneId = null;
+  renderZonesList();
+  renderZonesOnCanvas();
+  updateSaveBtn();
+}
+
+btnAddZone.addEventListener('click', async () => {
+  const name = await customPrompt('Nombre de la zona:', `zona_${zones.length + 1}`);
+  if (!name) return;
+  const exType = await customPrompt('Tipo (text / table):', 'text');
+  zones.push({
+    id: 'z_' + Date.now(),
+    name: name.toLowerCase().replace(/\s+/g, '_'),
+    type: 'rect',
+    extraction_type: exType === 'table' ? 'table' : 'text',
+    x0: 0, y0: 0, x1: 0, y1: 0,
+    drawn_on_page: currentPage - 1,
+    page_range: String(currentPage),
+  });
+  renderZonesList();
+  updateSaveBtn();
+});
+
+btnClearZones.addEventListener('click', () => {
+  if (zones.length && !confirm('¿Eliminar todas las zonas?')) return;
+  zones = []; selectedZoneId = null;
+  renderZonesList();
+  renderZonesOnCanvas();
+  updateSaveBtn();
+});
+
+function updateSaveBtn() {
+  btnSaveTemplate.disabled = zones.length === 0;
+}
+
+// ── Template CRUD ──────────────────────────────────────────────────────────────
+async function loadTemplatesList() {
+  try {
+    const res = await fetch('/templates/list');
+    const data = await res.json();
+    templateSelect.innerHTML = '<option value="">-- Seleccionar --</option>';
+    if (data.success && data.data) {
+      data.data.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.name;
+        templateSelect.appendChild(opt);
+      });
+    }
+  } catch (e) { console.error('Error cargando plantillas:', e); }
+}
+
+btnLoadTemplate.addEventListener('click', async () => {
+  const id = templateSelect.value;
+  if (!id) { alert('Seleccioná una plantilla'); return; }
+  try {
+    const res  = await fetch(`/templates/get/${id}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    const tj = data.data.template_json;
+    zones = (tj.zonas || []).map(z => ({
+      id: 'z_' + Date.now() + '_' + Math.random().toString(36).substr(2,6),
+      name: z.name,
+      type: z.type || 'rect',
+      extraction_type: z.extraction_type || 'text',
+      x0: z.x0 || 0, y0: z.y0 || 0,
+      x1: z.x1 || 0, y1: z.y1 || 0,
+      drawn_on_page: z.drawn_on_page !== undefined ? z.drawn_on_page : 0,
+      page_range: z.page_range || 'all',
+    }));
+    selectedZoneId = null;
+    loadedTemplateId = data.data.id;
+    renderZonesList();
+    renderZonesOnCanvas();
+    updateSaveBtn();
+    alert(`Plantilla "${data.data.name}" cargada (${zones.length} zonas)`);
+  } catch (e) { alert('Error: ' + e.message); }
+});
+
+btnSaveTemplate.addEventListener('click', async () => {
+  const zonesConCoords = zones.filter(z => z.x1 > z.x0 && z.y1 > z.y0);
+  if (!zonesConCoords.length) {
+    alert('No hay zonas con coordenadas válidas. Dibujá al menos una zona sobre el PDF.');
+    return;
+  }
+
+  let shouldUpdate = false;
+  let existingName = null;
+  if (loadedTemplateId) {
+    const opt = templateSelect.options[templateSelect.selectedIndex];
+    existingName = opt ? opt.text : null;
+    shouldUpdate = confirm(
+      `¿Actualizar la plantilla "${existingName}"?\n\nAceptar = actualizar · Cancelar = crear nueva`
+    );
+  }
+
+  const defaultName = existingName || `Plantilla_${new Date().toISOString().split('T')[0]}`;
+  let templateName;
+  if (shouldUpdate) {
+    templateName = existingName;
+  } else {
+    templateName = await customPrompt('Nombre de la plantilla:', defaultName);
+    if (!templateName) return;
+  }
+
+  const templateData = {
+    version: 2,
+    source_pdf: loadedFile ? loadedFile.name : '',
+    ui: {
+      viewport_width:   pdfDimensions.width,
+      viewport_height:  pdfDimensions.height,
+      page_width_pts:   pdfDimensions.pageWidthPts,
+      page_height_pts:  pdfDimensions.pageHeightPts,
+      scale:            pdfDimensions.scale,
+    },
+    zonas: zonesConCoords.map(z => ({
+      name:           z.name,
+      x0:             +z.x0.toFixed(2),
+      y0:             +z.y0.toFixed(2),
+      x1:             +z.x1.toFixed(2),
+      y1:             +z.y1.toFixed(2),
+      type:           z.type,
+      extraction_type:z.extraction_type,
+      page_range:     z.page_range,
+      drawn_on_page:  z.drawn_on_page,
+    })),
+  };
+
+  const fd = new FormData();
+  fd.append('name', templateName);
+  fd.append('template', JSON.stringify(templateData));
+  if (shouldUpdate && loadedTemplateId) fd.append('template_id', loadedTemplateId);
+
+  try {
+    const res  = await fetch('/templates/save', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    loadedTemplateId = data.id;
+    await loadTemplatesList();
+    templateSelect.value = data.id;
+    const action = shouldUpdate ? 'actualizada' : 'guardada';
+    alert(`Plantilla "${data.name}" ${action} correctamente`);
+  } catch (e) { alert('Error al guardar: ' + e.message); }
+});
+
+btnDeleteTemplate.addEventListener('click', async () => {
+  const id = templateSelect.value;
+  if (!id) { alert('Seleccioná una plantilla'); return; }
+  const name = templateSelect.options[templateSelect.selectedIndex].text;
+  if (!confirm(`¿Eliminar la plantilla "${name}"?`)) return;
+  try {
+    const res  = await fetch(`/templates/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    if (loadedTemplateId == id) loadedTemplateId = null;
+    await loadTemplatesList();
+    alert('Plantilla eliminada');
+  } catch (e) { alert('Error: ' + e.message); }
+});
+
+// ── Extract preview ────────────────────────────────────────────────────────────
+btnExtract.addEventListener('click', async () => {
+  if (!loadedFile) { alert('Primero subí un PDF'); return; }
+  const zonesConCoords = zones.filter(z => z.x1 > z.x0 && z.y1 > z.y0);
+  if (!zonesConCoords.length) { alert('No hay zonas con coordenadas válidas'); return; }
+
+  btnExtract.disabled = true;
+  extractStatus.textContent = 'Extrayendo…';
+  extractResultsWrap.style.display = '';
+  extractResults.innerHTML = '<div class="text-muted small">⏳ Procesando…</div>';
+
+  const templateData = {
+    version: 2,
+    ui: {
+      viewport_width:  pdfDimensions.width,
+      viewport_height: pdfDimensions.height,
+      page_width_pts:  pdfDimensions.pageWidthPts,
+      page_height_pts: pdfDimensions.pageHeightPts,
+      scale:           pdfDimensions.scale,
+    },
+    zonas: zonesConCoords.map(z => ({
+      name: z.name, x0: z.x0, y0: z.y0, x1: z.x1, y1: z.y1,
+      type: z.type, extraction_type: z.extraction_type,
+      page_range: z.page_range, drawn_on_page: z.drawn_on_page,
+    })),
+  };
+
+  const fd = new FormData();
+  fd.append('pdf', loadedFile, loadedFile.name);
+  fd.append('template', JSON.stringify(templateData));
+
+  try {
+    const res  = await fetch('/templates/extract', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    if (data.results && data.results.length) {
+      extractResults.innerHTML = `
+        <table class="table table-sm table-bordered mb-0" id="extractResults">
+          <thead><tr><th>Campo</th><th>Valor extraído</th></tr></thead>
+          <tbody>
+            ${data.results.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(String(r.value ?? ''))}</td></tr>`).join('')}
+          </tbody>
+        </table>`;
+      extractStatus.textContent = `${data.results.length} campo(s) extraído(s)`;
+    } else {
+      extractResults.innerHTML = '<div class="text-muted small">Sin resultados</div>';
+      extractStatus.textContent = '';
+    }
+  } catch (e) {
+    extractResults.innerHTML = `<div class="text-danger small">${esc(e.message)}</div>`;
+    extractStatus.textContent = '';
+  } finally {
+    btnExtract.disabled = false;
+  }
+});
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+loadTemplatesList();
+
+})();
+</script>
+{% endblock %}
