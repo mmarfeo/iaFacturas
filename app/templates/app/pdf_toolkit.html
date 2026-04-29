@@ -100,13 +100,10 @@
   gap: .5rem;
   height: 25vh;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   padding: .25rem .1rem;
-  align-items: center;
+  align-items: flex-start;
   scroll-snap-type: y mandatory;
-}
-.pg-thumb {
-  scroll-snap-align: start;
 }
 .pg-thumb {
   position: relative;
@@ -118,10 +115,42 @@
   overflow: hidden;
   flex-shrink: 0;
   user-select: none;
+  scroll-snap-align: start;
+  width: 100%;
 }
 .pg-thumb canvas {
   display: block;
   border-radius: 4px;
+  width: 100%;
+  height: auto;
+}
+
+/* ── Zoom controls ── */
+#zoomControls {
+  display: none;
+  align-items: center;
+  gap: .35rem;
+  margin-bottom: .4rem;
+}
+#zoomControls .zoom-btn {
+  border: 1px solid var(--ia-border, #dee2e6);
+  background: transparent;
+  border-radius: 6px;
+  width: 1.6rem; height: 1.6rem;
+  font-size: 1rem; line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+#zoomControls .zoom-btn:hover {
+  background: var(--ia-surface2, rgba(108,78,252,.06));
+  border-color: var(--ia-primary, #6c4efc);
+}
+#zoomLabel {
+  font-size: .78rem;
+  min-width: 2.8rem;
+  text-align: center;
+  color: var(--ia-muted, #6c757d);
 }
 .pg-thumb .pg-num {
   position: absolute;
@@ -248,6 +277,12 @@
             <span id="previewPageCount" class="badge bg-secondary ms-1" style="display:none"></span>
             <span id="previewHint"></span>
           </div>
+          <div id="zoomControls">
+            <button class="zoom-btn" id="btnZoomOut" title="Alejar (Ctrl+scroll ↓)">−</button>
+            <span id="zoomLabel">100%</span>
+            <button class="zoom-btn" id="btnZoomIn"  title="Acercar (Ctrl+scroll ↑)">+</button>
+            <button class="zoom-btn" id="btnZoomReset" title="Restablecer zoom" style="font-size:.7rem">↺</button>
+          </div>
           <div id="previewLoading" style="display:none">⏳ Renderizando páginas…</div>
           <div id="previewGrid"></div>
         </div>
@@ -314,6 +349,11 @@
   const previewLoading    = document.getElementById('previewLoading');
   const previewGrid       = document.getElementById('previewGrid');
   const previewPageCount  = document.getElementById('previewPageCount');
+  const zoomControls      = document.getElementById('zoomControls');
+  const btnZoomIn         = document.getElementById('btnZoomIn');
+  const btnZoomOut        = document.getElementById('btnZoomOut');
+  const btnZoomReset      = document.getElementById('btnZoomReset');
+  const zoomLabel         = document.getElementById('zoomLabel');
 
   let selectedFiles  = [];
   let currentMode    = 'all';
@@ -321,6 +361,26 @@
   // rango seleccionado via clicks (1-based)
   let anchorPage     = null;   // primer clic
   let endPage        = null;   // segundo clic
+
+  // ── Zoom ──────────────────────────────────────────────────────────────────────
+  let zoomPct = 100;  // porcentaje; 100 = ancho completo del contenedor
+
+  function applyZoom() {
+    zoomLabel.textContent = zoomPct + '%';
+    const w = zoomPct + '%';
+    previewGrid.querySelectorAll('.pg-thumb').forEach(th => { th.style.width = w; });
+  }
+
+  btnZoomIn.addEventListener('click', () => { zoomPct = Math.min(400, zoomPct + 25); applyZoom(); });
+  btnZoomOut.addEventListener('click', () => { zoomPct = Math.max(100, zoomPct - 25); applyZoom(); });
+  btnZoomReset.addEventListener('click', () => { zoomPct = 100; applyZoom(); });
+
+  previewGrid.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    zoomPct = Math.min(400, Math.max(100, zoomPct + (e.deltaY < 0 ? 25 : -25)));
+    applyZoom();
+  }, { passive: false });
 
   // ── Modo ──────────────────────────────────────────────────────────────────────
   function setMode(m) {
@@ -424,6 +484,8 @@
       rightCol.style.display = 'none';
       previewPageCount.style.display = 'none';
       previewPageCount.textContent = '';
+      zoomControls.style.display = 'none';
+      zoomPct = 100;
       return;
     }
 
@@ -458,11 +520,14 @@
 
       previewLoading.style.display = 'none';
       previewGrid.style.display    = '';
+      zoomControls.style.display   = 'flex';
+      zoomPct = 100;
+      zoomLabel.textContent = '100%';
 
       if (currentMode === 'range') rangeHint.style.display = '';
 
-      // Renderizar miniaturas página por página
-      const THUMB_WIDTH = 120;
+      // Renderizar miniaturas página por página al ancho real del contenedor
+      const THUMB_WIDTH = previewGrid.clientWidth || 300;
       for (let i = 1; i <= totalPages; i++) {
         if (ctrl.signal.aborted) return;
 
@@ -497,8 +562,6 @@
             const scaled   = page.getViewport({ scale });
             cvs.width  = scaled.width;
             cvs.height = scaled.height;
-            th.style.width  = scaled.width  + 'px';
-            th.style.height = scaled.height + 'px';
             await page.render({ canvasContext: cvs.getContext('2d'), viewport: scaled }).promise;
             th.classList.remove('loading');
             th.querySelector('.pg-spinner').remove();
