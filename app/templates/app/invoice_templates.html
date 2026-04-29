@@ -478,6 +478,7 @@ async function loadFile(file) {
         scale: 1,
       };
       pdfLoading.style.display = 'none';
+      pdfWrapper.style.display = 'block';
       showPdfWrapper();
     };
     pdfImg.src = url;
@@ -515,7 +516,7 @@ async function renderPage(pageNum) {
 }
 
 function showPdfWrapper() {
-  pdfWrapper.style.display = '';
+  pdfWrapper.style.display = 'block';
   applyZoom();
   updatePageNav();
   setupZoneDrawing();
