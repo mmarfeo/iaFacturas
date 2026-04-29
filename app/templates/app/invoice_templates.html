@@ -560,9 +560,13 @@ function enableToolbarBtns(on) {
 // ── Zone drawing (Shift + drag) ────────────────────────────────────────────────
 let isDrawing = false, drawStartX = 0, drawStartY = 0;
 let drawTempRect = null;
+let zoneListenersReady = false;
+
+function getOverlay() { return document.getElementById('overlayContainer'); }
 
 function screenToCanvas(screenX, screenY) {
-  const rect = overlayEl.getBoundingClientRect();
+  const ov   = getOverlay();
+  const rect = ov.getBoundingClientRect();
   return {
     x: (screenX - rect.left) * pdfDimensions.width  / rect.width,
     y: (screenY - rect.top)  * pdfDimensions.height / rect.height,
@@ -570,24 +574,17 @@ function screenToCanvas(screenX, screenY) {
 }
 
 function setupZoneDrawing() {
-  // Clone overlay to reset listeners
-  const newOverlay = overlayEl.cloneNode(false);
-  overlayEl.parentNode.replaceChild(newOverlay, overlayEl);
-  // Re-assign so the reference stays valid
-  Object.assign(overlayEl, newOverlay); // won't work since const - use a workaround:
-  // (We actually keep a reference via the parent)
-  const ov = document.getElementById('overlayContainer');
+  // Los listeners se registran una sola vez sobre el overlay fijo del DOM.
+  if (zoneListenersReady) return;
+  zoneListenersReady = true;
 
+  const ov = getOverlay();
   ov.addEventListener('mousedown', onDrawMouseDown);
   ov.addEventListener('mousemove', onDrawMouseMove);
   ov.addEventListener('mouseup',   onDrawMouseUp);
   ov.addEventListener('selectstart', (e) => { if (isDrawing) e.preventDefault(); });
   mountZoneInteractionListeners(ov);
 }
-
-// We need overlayEl to always point to the current overlay element.
-// Since we clone it, let's use a getter approach:
-function getOverlay() { return document.getElementById('overlayContainer'); }
 
 function onDrawMouseDown(e) {
   if (!e.shiftKey) return;
