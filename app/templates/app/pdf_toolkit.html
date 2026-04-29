@@ -127,7 +127,7 @@
 
 /* ── Zoom controls ── */
 #zoomControls {
-  display: none;
+  display: flex;
   align-items: center;
   gap: .35rem;
   margin-bottom: .4rem;
@@ -212,40 +212,60 @@
   <!-- Card principal -->
   <div class="ia-card p-4">
 
-    <!-- Modo -->
-    <div class="mb-4">
-      <label class="form-label fw-semibold mb-2">Modo de división</label>
-      <div class="d-flex gap-2 flex-wrap">
-        <button type="button" id="btnModeAll" class="btn ia-btn-mode active">
-          📄 Todas las hojas
-        </button>
-        <button type="button" id="btnModeRange" class="btn ia-btn-mode">
-          ✂️ Rango de páginas
-        </button>
-      </div>
+    <!-- Modo + info preview en 50/50 -->
+    <div class="d-flex gap-3 align-items-start mb-4">
 
-      <!-- Rango inputs -->
-      <div id="rangeRow" class="mt-3 d-none">
-        <div class="d-flex align-items-end gap-2 flex-wrap">
-          <div>
-            <label class="form-label small mb-1">Desde (pág.)</label>
-            <input type="number" id="pageStart" class="form-control form-control-sm"
-                   min="1" value="1" style="width:90px">
-          </div>
-          <div class="pb-1 text-muted">—</div>
-          <div>
-            <label class="form-label small mb-1">Hasta (pág.)</label>
-            <input type="number" id="pageEnd" class="form-control form-control-sm"
-                   min="1" value="1" style="width:90px">
-          </div>
-          <div class="pb-1">
-            <span id="pageCount" class="badge bg-secondary" style="display:none"></span>
-          </div>
-          <div class="pb-1 ms-auto" id="rangeHint" style="font-size:.8rem;color:var(--ia-muted,#6c757d);display:none">
-            Hacé clic en las miniaturas para seleccionar páginas
+      <!-- Izquierda: modo de división -->
+      <div style="flex:1;min-width:0">
+        <label class="form-label fw-semibold mb-2">Modo de división</label>
+        <div class="d-flex gap-2 flex-wrap">
+          <button type="button" id="btnModeAll" class="btn ia-btn-mode active">
+            📄 Todas las hojas
+          </button>
+          <button type="button" id="btnModeRange" class="btn ia-btn-mode">
+            ✂️ Rango de páginas
+          </button>
+        </div>
+
+        <!-- Rango inputs -->
+        <div id="rangeRow" class="mt-3 d-none">
+          <div class="d-flex align-items-end gap-2 flex-wrap">
+            <div>
+              <label class="form-label small mb-1">Desde (pág.)</label>
+              <input type="number" id="pageStart" class="form-control form-control-sm"
+                     min="1" value="1" style="width:90px">
+            </div>
+            <div class="pb-1 text-muted">—</div>
+            <div>
+              <label class="form-label small mb-1">Hasta (pág.)</label>
+              <input type="number" id="pageEnd" class="form-control form-control-sm"
+                     min="1" value="1" style="width:90px">
+            </div>
+            <div class="pb-1">
+              <span id="pageCount" class="badge bg-secondary" style="display:none"></span>
+            </div>
+            <div class="pb-1 ms-auto" id="rangeHint" style="font-size:.8rem;color:var(--ia-muted,#6c757d);display:none">
+              Hacé clic en las miniaturas para seleccionar páginas
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- Derecha: título preview + zoom (visible solo con 1 PDF cargado) -->
+      <div id="previewInfoCol" style="flex:1;min-width:0;display:none">
+        <div id="previewTitle">
+          Vista previa
+          <span id="previewPageCount" class="badge bg-secondary ms-1" style="display:none"></span>
+          <span id="previewHint"></span>
+        </div>
+        <div id="zoomControls">
+          <button class="zoom-btn" id="btnZoomOut" title="Alejar (Ctrl+scroll ↓)">−</button>
+          <span id="zoomLabel">100%</span>
+          <button class="zoom-btn" id="btnZoomIn"  title="Acercar (Ctrl+scroll ↑)">+</button>
+          <button class="zoom-btn" id="btnZoomReset" title="Restablecer zoom" style="font-size:.7rem">↺</button>
+        </div>
+      </div>
+
     </div>
 
     <!-- Fila principal: drop zone + preview en 50/50 -->
@@ -272,17 +292,6 @@
       <!-- Columna derecha: preview (aparece al cargar 1 PDF) -->
       <div id="rightCol" style="flex:1;min-width:0;display:none">
         <div id="previewSection" style="height:100%">
-          <div id="previewTitle">
-            Vista previa
-            <span id="previewPageCount" class="badge bg-secondary ms-1" style="display:none"></span>
-            <span id="previewHint"></span>
-          </div>
-          <div id="zoomControls">
-            <button class="zoom-btn" id="btnZoomOut" title="Alejar (Ctrl+scroll ↓)">−</button>
-            <span id="zoomLabel">100%</span>
-            <button class="zoom-btn" id="btnZoomIn"  title="Acercar (Ctrl+scroll ↑)">+</button>
-            <button class="zoom-btn" id="btnZoomReset" title="Restablecer zoom" style="font-size:.7rem">↺</button>
-          </div>
           <div id="previewLoading" style="display:none">⏳ Renderizando páginas…</div>
           <div id="previewGrid"></div>
         </div>
@@ -354,6 +363,7 @@
   const btnZoomOut        = document.getElementById('btnZoomOut');
   const btnZoomReset      = document.getElementById('btnZoomReset');
   const zoomLabel         = document.getElementById('zoomLabel');
+  const previewInfoCol    = document.getElementById('previewInfoCol');
 
   let selectedFiles  = [];
   let currentMode    = 'all';
@@ -481,10 +491,10 @@
     rangeHint.style.display = 'none';
 
     if (selectedFiles.length !== 1) {
-      rightCol.style.display = 'none';
+      rightCol.style.display      = 'none';
+      previewInfoCol.style.display = 'none';
       previewPageCount.style.display = 'none';
       previewPageCount.textContent = '';
-      zoomControls.style.display = 'none';
       zoomPct = 100;
       return;
     }
@@ -518,9 +528,9 @@
       pageStart.value = anchorPage;
       pageEnd.value   = endPage;
 
-      previewLoading.style.display = 'none';
-      previewGrid.style.display    = '';
-      zoomControls.style.display   = 'flex';
+      previewLoading.style.display  = 'none';
+      previewGrid.style.display     = '';
+      previewInfoCol.style.display  = '';
       zoomPct = 100;
       zoomLabel.textContent = '100%';
 
