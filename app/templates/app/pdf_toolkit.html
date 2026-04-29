@@ -96,14 +96,17 @@
 }
 #previewGrid {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: .5rem;
-  /* scroll vertical fijo: muestra ~2 filas, el resto con scroll */
-  height: 380px;
+  height: 25vh;
   overflow-y: auto;
   overflow-x: hidden;
   padding: .25rem .1rem;
-  align-content: flex-start;
+  align-items: center;
+  scroll-snap-type: y mandatory;
+}
+.pg-thumb {
+  scroll-snap-align: start;
 }
 .pg-thumb {
   position: relative;
@@ -242,6 +245,7 @@
         <div id="previewSection" style="height:100%">
           <div id="previewTitle">
             Vista previa
+            <span id="previewPageCount" class="badge bg-secondary ms-1" style="display:none"></span>
             <span id="previewHint"></span>
           </div>
           <div id="previewLoading" style="display:none">⏳ Renderizando páginas…</div>
@@ -307,8 +311,9 @@
   const previewSection = document.getElementById('previewSection');
   const previewTitle   = document.getElementById('previewTitle');
   const previewHint    = document.getElementById('previewHint');
-  const previewLoading = document.getElementById('previewLoading');
-  const previewGrid    = document.getElementById('previewGrid');
+  const previewLoading    = document.getElementById('previewLoading');
+  const previewGrid       = document.getElementById('previewGrid');
+  const previewPageCount  = document.getElementById('previewPageCount');
 
   let selectedFiles  = [];
   let currentMode    = 'all';
@@ -417,6 +422,8 @@
 
     if (selectedFiles.length !== 1) {
       rightCol.style.display = 'none';
+      previewPageCount.style.display = 'none';
+      previewPageCount.textContent = '';
       return;
     }
 
@@ -438,6 +445,8 @@
       totalPages = pdfDoc.numPages;
       pageCount.textContent   = `${totalPages} pág.`;
       pageCount.style.display = '';
+      previewPageCount.textContent  = `${totalPages} pág.`;
+      previewPageCount.style.display = '';
       pageEnd.max   = totalPages;
       pageStart.max = totalPages;
 
