@@ -33,6 +33,14 @@
   cursor: pointer;
   transition: border-color .18s, background .18s;
 }
+.ia-drop-zone--tall {
+  /* se estira para igualar la altura de la columna de preview */
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
 .ia-drop-zone:hover,
 .ia-drop-zone.drag-over {
   border-color: var(--ia-primary, #6c4efc);
@@ -67,18 +75,19 @@
 
 /* ── Preview de páginas ── */
 #previewSection {
-  margin-top: 1.2rem;
-  border-top: 1px solid var(--ia-border, #dee2e6);
-  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 #previewTitle {
   font-size: .85rem;
   font-weight: 600;
   color: var(--ia-muted, #6c757d);
-  margin-bottom: .75rem;
+  margin-bottom: .6rem;
   display: flex;
   align-items: center;
   gap: .5rem;
+  flex-shrink: 0;
 }
 #previewHint {
   font-size: .78rem;
@@ -88,10 +97,13 @@
 #previewGrid {
   display: flex;
   flex-wrap: wrap;
-  gap: .6rem;
-  max-height: 360px;
+  gap: .5rem;
+  /* scroll vertical fijo: muestra ~2 filas, el resto con scroll */
+  height: 380px;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: .25rem .1rem;
+  align-content: flex-start;
 }
 .pg-thumb {
   position: relative;
@@ -204,32 +216,40 @@
       </div>
     </div>
 
-    <!-- Drop zone -->
-    <div id="dropZone" class="ia-drop-zone mb-3">
-      <div class="ia-drop-icon">📂</div>
-      <div class="ia-drop-title">Arrastrá o hacé clic para subir PDFs</div>
-      <div class="ia-drop-sub">Podés subir uno o varios archivos a la vez</div>
-    </div>
-    <input type="file" id="fileInput" accept=".pdf,application/pdf" multiple style="display:none">
+    <!-- Fila principal: drop zone + preview en 50/50 -->
+    <div id="mainRow" class="d-flex gap-3 align-items-stretch mb-3">
 
-    <!-- Lista de archivos -->
-    <div id="fileList" class="mb-3" style="display:none">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <span class="fw-semibold small">Archivos seleccionados</span>
-        <button id="btnClear" class="btn btn-link btn-sm p-0 text-danger">Limpiar</button>
-      </div>
-      <div id="fileItems"></div>
-    </div>
+      <!-- Columna izquierda: drop zone + lista -->
+      <div id="leftCol" style="flex:1;min-width:0">
+        <div id="dropZone" class="ia-drop-zone ia-drop-zone--tall">
+          <div class="ia-drop-icon">📂</div>
+          <div class="ia-drop-title">Arrastrá o hacé clic para subir PDFs</div>
+          <div class="ia-drop-sub">Podés subir uno o varios archivos a la vez</div>
+        </div>
+        <input type="file" id="fileInput" accept=".pdf,application/pdf" multiple style="display:none">
 
-    <!-- Preview de páginas (solo 1 archivo) -->
-    <div id="previewSection" style="display:none">
-      <div id="previewTitle">
-        Vista previa
-        <span id="previewHint"></span>
+        <div id="fileList" class="mt-2" style="display:none">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="fw-semibold small">Archivos seleccionados</span>
+            <button id="btnClear" class="btn btn-link btn-sm p-0 text-danger">Limpiar</button>
+          </div>
+          <div id="fileItems"></div>
+        </div>
       </div>
-      <div id="previewLoading" style="display:none">⏳ Renderizando páginas…</div>
-      <div id="previewGrid"></div>
-    </div>
+
+      <!-- Columna derecha: preview (aparece al cargar 1 PDF) -->
+      <div id="rightCol" style="flex:1;min-width:0;display:none">
+        <div id="previewSection" style="height:100%">
+          <div id="previewTitle">
+            Vista previa
+            <span id="previewHint"></span>
+          </div>
+          <div id="previewLoading" style="display:none">⏳ Renderizando páginas…</div>
+          <div id="previewGrid"></div>
+        </div>
+      </div>
+
+    </div><!-- /mainRow -->
 
     <!-- Barra de progreso + botón -->
     <div class="d-flex gap-2 align-items-center mt-3">
@@ -283,6 +303,7 @@
   const progressBar    = document.getElementById('progressBar');
   const progressFill   = document.getElementById('progressFill');
   const statusMsg      = document.getElementById('statusMsg');
+  const rightCol       = document.getElementById('rightCol');
   const previewSection = document.getElementById('previewSection');
   const previewTitle   = document.getElementById('previewTitle');
   const previewHint    = document.getElementById('previewHint');
@@ -395,11 +416,11 @@
     rangeHint.style.display = 'none';
 
     if (selectedFiles.length !== 1) {
-      previewSection.style.display = 'none';
+      rightCol.style.display = 'none';
       return;
     }
 
-    previewSection.style.display = '';
+    rightCol.style.display       = '';
     previewLoading.style.display = '';
     previewGrid.style.display    = 'none';
 
