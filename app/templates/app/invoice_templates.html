@@ -137,11 +137,17 @@
   background: rgba(108,78,252,.05);
 }
 
-/* ── PDF wrapper + overlay ── */
-#pdfWrapper {
+/* ── PDF size holder (da dimensiones reales escaladas al scroll container) ── */
+#pdfSizeHolder {
   display: none;
   position: relative;
-  margin: 1rem auto;
+}
+
+/* ── PDF wrapper + overlay ── */
+#pdfWrapper {
+  display: block;
+  position: absolute;
+  top: 0; left: 0;
   width: fit-content;
   transform-origin: top left;
 }
@@ -240,15 +246,10 @@
 {% block content %}
 <div class="container-xl py-3" style="max-width:1200px">
 
-  <!-- Header -->
-  <div class="d-flex align-items-center gap-3 mb-3">
-    <div style="font-size:2rem;line-height:1">🗂️</div>
-    <div>
-      <h2 class="mb-0 fw-bold" style="font-size:1.5rem">Plantillas de extracción</h2>
-      <p class="text-muted mb-0" style="font-size:.88rem">
-        Dibujá zonas sobre el PDF para definir qué campos extraer
-      </p>
-    </div>
+  <!-- Header mínimo -->
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <span style="font-size:1.5rem;line-height:1">🗂️</span>
+    <h2 class="mb-0 fw-bold" style="font-size:1.25rem">Plantillas de extracción</h2>
   </div>
 
   <!-- Editor principal -->
@@ -256,6 +257,13 @@
 
     <!-- ── Panel izquierdo ──────────────────────────────────────── -->
     <div id="leftPanel">
+
+      <!-- Descripción -->
+      <div class="lp-section" style="background:rgba(108,78,252,.05)">
+        <p class="mb-0" style="font-size:.8rem;color:var(--ia-muted,#6c757d)">
+          Dibujá zonas sobre el PDF para definir qué campos extraer. Usá <kbd>Shift</kbd>+arrastrar o el botón <strong>+ Zona</strong>.
+        </p>
+      </div>
 
       <!-- Plantillas guardadas -->
       <div class="lp-section">
@@ -278,10 +286,13 @@
         <div id="zoneList" style="flex:1;overflow-y:auto"></div>
       </div>
 
-      <!-- Acciones -->
+      <!-- Guardar plantilla -->
       <div class="lp-section">
+        <div class="lp-title">Guardar plantilla</div>
+        <input type="text" id="templateNameInput" class="form-control form-control-sm mb-2"
+               placeholder="Nombre de la plantilla">
         <button id="btnSaveTemplate" class="btn ia-btn-primary w-100 mb-2" disabled>
-          Guardar plantilla
+          Guardar
         </button>
         <button id="btnClearZones" class="btn btn-outline-danger btn-sm w-100">Limpiar zonas</button>
       </div>
@@ -322,10 +333,12 @@
         </div>
         <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/*" style="display:none">
 
-        <!-- PDF wrapper + overlay -->
-        <div id="pdfWrapper">
-          <img id="pdfImg" alt="PDF page">
-          <div id="overlayContainer"></div>
+        <!-- Size holder: toma las dimensiones escaladas para el scroll -->
+        <div id="pdfSizeHolder">
+          <div id="pdfWrapper">
+            <img id="pdfImg" alt="PDF page">
+            <div id="overlayContainer"></div>
+          </div>
         </div>
 
         <div id="pdfLoading" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:.95rem;color:var(--ia-muted,#6c757d)">
@@ -402,9 +415,11 @@ const btnDeleteTemplate= document.getElementById('btnDeleteTemplate');
 const templateSelect   = document.getElementById('templateSelect');
 const zoneList         = document.getElementById('zoneList');
 const zoneCount        = document.getElementById('zoneCount');
-const extractResultsWrap = document.getElementById('extractResultsWrap');
-const extractResults   = document.getElementById('extractResults');
-const extractStatus    = document.getElementById('extractStatus');
+const extractResultsWrap  = document.getElementById('extractResultsWrap');
+const extractResults      = document.getElementById('extractResults');
+const extractStatus       = document.getElementById('extractStatus');
+const pdfSizeHolder       = document.getElementById('pdfSizeHolder');
+const templateNameInput   = document.getElementById('templateNameInput');
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let zones          = [];          // { id, name, type, extraction_type, x0, y0, x1, y1, drawn_on_page, page_range }
@@ -459,7 +474,7 @@ async function loadFile(file) {
   zones = []; selectedZoneId = null; currentPage = 1;
   renderZonesList();
   dropZone.style.display = 'none';
-  pdfWrapper.style.display = 'none';
+  pdfSizeHolder.style.display = 'none';
   pdfLoading.style.display = '';
 
   if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
@@ -478,7 +493,6 @@ async function loadFile(file) {
         scale: 1,
       };
       pdfLoading.style.display = 'none';
-      pdfWrapper.style.display = 'block';
       showPdfWrapper();
     };
     pdfImg.src = url;
@@ -488,7 +502,7 @@ async function loadFile(file) {
 async function renderPage(pageNum) {
   if (!pdfDoc) return;
   pdfLoading.style.display = '';
-  pdfWrapper.style.display = 'none';
+  pdfSizeHolder.style.display = 'none';
 
   const page      = await pdfDoc.getPage(pageNum);
   const SCALE     = 2.5;
@@ -516,7 +530,7 @@ async function renderPage(pageNum) {
 }
 
 function showPdfWrapper() {
-  pdfWrapper.style.display = 'block';
+  pdfSizeHolder.style.display = 'block';
   applyZoom();
   updatePageNav();
   setupZoneDrawing();
@@ -525,12 +539,16 @@ function showPdfWrapper() {
 }
 
 // ── Zoom ───────────────────────────────────────────────────────────────────────
+const PDF_MARGIN = 20;
+
 function applyZoom() {
   const z = zoomPct / 100;
   pdfWrapper.style.transform = `scale(${z})`;
-  // Ajustar el scroll container para que ocupe el tamaño escalado
-  pdfWrapper.style.marginBottom = ((pdfDimensions.height * z) - pdfDimensions.height) + 'px';
-  pdfWrapper.style.marginRight  = ((pdfDimensions.width  * z) - pdfDimensions.width)  + 'px';
+  pdfWrapper.style.top  = PDF_MARGIN + 'px';
+  pdfWrapper.style.left = PDF_MARGIN + 'px';
+  // El size-holder toma las dimensiones reales escaladas → el scroll del pdfArea funciona
+  pdfSizeHolder.style.width  = (pdfDimensions.width  * z + PDF_MARGIN * 2) + 'px';
+  pdfSizeHolder.style.height = (pdfDimensions.height * z + PDF_MARGIN * 2) + 'px';
   zoomLabel.textContent = zoomPct + '%';
 }
 
@@ -822,19 +840,35 @@ function deleteZone(id) {
 }
 
 btnAddZone.addEventListener('click', async () => {
+  if (!pdfDimensions.width) { alert('Subí un PDF primero'); return; }
   const name = await customPrompt('Nombre de la zona:', `zona_${zones.length + 1}`);
   if (!name) return;
   const exType = await customPrompt('Tipo (text / table):', 'text');
+
+  // Centrar la zona en el área visible del scroll
+  const z = zoomPct / 100;
+  const visibleCX = pdfArea.scrollLeft + pdfArea.clientWidth  / 2;
+  const visibleCY = pdfArea.scrollTop  + pdfArea.clientHeight / 2;
+  // Convertir coords de scroll a coords de canvas (descontar margin y zoom)
+  const cx = Math.max(0, Math.min((visibleCX - PDF_MARGIN) / z, pdfDimensions.width));
+  const cy = Math.max(0, Math.min((visibleCY - PDF_MARGIN) / z, pdfDimensions.height));
+
+  const ZW = Math.min(200, pdfDimensions.width  * 0.25);
+  const ZH = Math.min(60,  pdfDimensions.height * 0.05);
+  const x0 = Math.max(0, Math.min(cx - ZW / 2, pdfDimensions.width  - ZW));
+  const y0 = Math.max(0, Math.min(cy - ZH / 2, pdfDimensions.height - ZH));
+
   zones.push({
     id: 'z_' + Date.now(),
     name: name.toLowerCase().replace(/\s+/g, '_'),
     type: 'rect',
     extraction_type: exType === 'table' ? 'table' : 'text',
-    x0: 0, y0: 0, x1: 0, y1: 0,
+    x0, y0, x1: x0 + ZW, y1: y0 + ZH,
     drawn_on_page: currentPage - 1,
     page_range: String(currentPage),
   });
   renderZonesList();
+  renderZonesOnCanvas();
   updateSaveBtn();
 });
 
@@ -887,6 +921,7 @@ btnLoadTemplate.addEventListener('click', async () => {
     }));
     selectedZoneId = null;
     loadedTemplateId = data.data.id;
+    templateNameInput.value = data.data.name;
     renderZonesList();
     renderZonesOnCanvas();
     updateSaveBtn();
@@ -901,23 +936,22 @@ btnSaveTemplate.addEventListener('click', async () => {
     return;
   }
 
-  let shouldUpdate = false;
-  let existingName = null;
-  if (loadedTemplateId) {
-    const opt = templateSelect.options[templateSelect.selectedIndex];
-    existingName = opt ? opt.text : null;
-    shouldUpdate = confirm(
-      `¿Actualizar la plantilla "${existingName}"?\n\nAceptar = actualizar · Cancelar = crear nueva`
-    );
+  const templateName = templateNameInput.value.trim();
+  if (!templateName) {
+    templateNameInput.focus();
+    templateNameInput.classList.add('is-invalid');
+    setTimeout(() => templateNameInput.classList.remove('is-invalid'), 2000);
+    alert('Escribí un nombre para la plantilla');
+    return;
   }
 
-  const defaultName = existingName || `Plantilla_${new Date().toISOString().split('T')[0]}`;
-  let templateName;
-  if (shouldUpdate) {
-    templateName = existingName;
-  } else {
-    templateName = await customPrompt('Nombre de la plantilla:', defaultName);
-    if (!templateName) return;
+  let shouldUpdate = false;
+  if (loadedTemplateId) {
+    const opt = templateSelect.options[templateSelect.selectedIndex];
+    const existingName = opt ? opt.text : null;
+    shouldUpdate = confirm(
+      `¿Actualizar "${existingName}"?\n\nAceptar = actualizar · Cancelar = crear nueva`
+    );
   }
 
   const templateData = {
@@ -953,6 +987,7 @@ btnSaveTemplate.addEventListener('click', async () => {
     const data = await res.json();
     if (!data.success) throw new Error(data.message);
     loadedTemplateId = data.id;
+    templateNameInput.value = data.name;
     await loadTemplatesList();
     templateSelect.value = data.id;
     const action = shouldUpdate ? 'actualizada' : 'guardada';
