@@ -26,3 +26,4 @@ class Usuario(Base):
     suscripciones: Mapped[list["Suscripcion"]] = relationship("Suscripcion", back_populates="usuario")
     uso_mensual: Mapped[list["UsoMensual"]] = relationship("UsoMensual", back_populates="usuario")
     templates: Mapped[list["InvoiceTemplate"]] = relationship("InvoiceTemplate", back_populates="usuario")
+    feedbacks: Mapped[list["UserFeedback"]] = relationship("UserFeedback", back_populates="usuario")

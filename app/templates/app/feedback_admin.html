@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Feedback{% endblock %}
+
+{% block content %}
+<div style="padding-top:calc(var(--ia-navbar-h) + 2rem)" class="container-xl pb-5">
+  <h2 class="fw-bold mb-1">Comentarios de usuarios</h2>
+  <p class="text-muted mb-4">{{ items|length }} registro(s)</p>
+
+  {% if not items %}
+    <p class="text-muted">No hay comentarios todavía.</p>
+  {% else %}
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th style="width:160px">Fecha</th>
+          <th style="width:100px">Tipo</th>
+          <th>Mensaje</th>
+          <th style="width:80px">Usuario</th>
+          <th style="width:180px">Página</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fb in items %}
+        <tr>
+          <td class="text-muted small">{{ fb.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td>
+            {% if fb.tipo == 'error' %}
+              <span class="badge bg-danger">Error</span>
+            {% elif fb.tipo == 'mejora' %}
+              <span class="badge bg-success">Mejora</span>
+            {% elif fb.tipo == 'consulta' %}
+              <span class="badge bg-info text-dark">Consulta</span>
+            {% else %}
+              <span class="badge bg-secondary">Otro</span>
+            {% endif %}
+          </td>
+          <td style="white-space:pre-wrap;max-width:500px">{{ fb.mensaje }}</td>
+          <td class="text-muted small">{{ fb.usuario_id or '—' }}</td>
+          <td class="text-muted small text-truncate" style="max-width:180px" title="{{ fb.pagina or '' }}">{{ fb.pagina or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
