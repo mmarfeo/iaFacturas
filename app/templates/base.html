@@ -17,125 +17,213 @@
       document.documentElement.setAttribute('data-bs-theme', d ? 'dark' : 'light');
     })();
   </script>
+
+  <style>
+    /* ── Sidebar ─────────────────────────────────────────────────── */
+    #iaSidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: 260px;
+      height: 100vh;
+      z-index: 1055;
+      background: var(--bs-body-bg);
+      border-right: 1px solid var(--bs-border-color);
+      display: flex;
+      flex-direction: column;
+      transform: translateX(-100%);
+      transition: transform .25s ease;
+      overflow: hidden;
+    }
+    #iaSidebar.open { transform: translateX(0); }
+
+    #sidebarBackdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1054;
+      background: rgba(0,0,0,.35);
+    }
+    #sidebarBackdrop.open { display: block; }
+
+    /* Sidebar header */
+    .ia-sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.1rem;
+      border-bottom: 1px solid var(--bs-border-color);
+      flex-shrink: 0;
+    }
+
+    /* Sidebar nav links */
+    .ia-sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: .5rem 0;
+    }
+    .ia-sidebar-nav a {
+      display: flex;
+      align-items: center;
+      gap: .55rem;
+      padding: .6rem 1.25rem;
+      color: var(--bs-body-color);
+      text-decoration: none;
+      font-size: .92rem;
+      font-weight: 500;
+      border-radius: 0;
+      transition: background .15s;
+    }
+    .ia-sidebar-nav a:hover {
+      background: var(--bs-tertiary-bg);
+    }
+    .ia-sidebar-nav a.active {
+      background: rgba(var(--ia-accent-rgb, 99,102,241), .12);
+      color: var(--ia-accent, #6366f1);
+      font-weight: 600;
+    }
+    .ia-sidebar-nav .nav-section {
+      font-size: .72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--bs-secondary-color);
+      padding: .9rem 1.25rem .3rem;
+    }
+
+    /* Sidebar footer (user info) */
+    .ia-sidebar-footer {
+      padding: .85rem 1.1rem;
+      border-top: 1px solid var(--bs-border-color);
+      flex-shrink: 0;
+    }
+
+    /* Hamburger button in navbar */
+    #sidebarToggle {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: .35rem .45rem;
+      border-radius: 6px;
+      color: var(--bs-body-color);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: background .15s;
+    }
+    #sidebarToggle:hover { background: var(--bs-tertiary-bg); }
+    #sidebarToggle span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: currentColor;
+      border-radius: 2px;
+      transition: transform .2s, opacity .2s;
+    }
+  </style>
 </head>
 <body>
 
+{% if user %}
+<!-- ═══════════════════ SIDEBAR BACKDROP ═══════════════════ -->
+<div id="sidebarBackdrop"></div>
+
+<!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+<aside id="iaSidebar">
+
+  <!-- Header -->
+  <div class="ia-sidebar-header">
+    <a class="ia-logo" href="/" style="text-decoration:none">
+      <div class="ia-logo-icon">IA</div>
+      <span class="ia-logo-text"><span class="text-accent">IA</span>Facturas</span>
+    </a>
+    <button id="sidebarClose" title="Cerrar menú"
+      style="background:none;border:none;font-size:1.4rem;cursor:pointer;
+             color:var(--bs-secondary-color);line-height:1;padding:.2rem .4rem">
+      &times;
+    </button>
+  </div>
+
+  <!-- Nav links -->
+  <nav class="ia-sidebar-nav">
+    <div class="nav-section">Aplicación</div>
+    <a href="/app/inicio"                 class="{% if current_page == 'inicio' %}active{% endif %}">🚀 Inicio</a>
+    <a href="/app/dashboard"              class="{% if current_page == 'dashboard' %}active{% endif %}">📊 Dashboard</a>
+    <a href="/app/upload"                 class="{% if current_page == 'upload' %}active{% endif %}">📤 Analizar</a>
+    <a href="/app/historial"              class="{% if current_page == 'historial' %}active{% endif %}">📁 Historial</a>
+    <a href="/app/lotes"                  class="{% if current_page == 'lotes' %}active{% endif %}">📦 Lotes</a>
+
+    <div class="nav-section">Herramientas</div>
+    <a href="/pdf-toolkit/herramientas"   class="{% if current_page == 'pdf_toolkit' %}active{% endif %}">📄 Herramientas PDF</a>
+    <a href="/templates/"                 class="{% if current_page == 'templates' %}active{% endif %}">🗂️ Plantillas</a>
+    <a href="/cae/consultar"              class="{% if current_page == 'consultar_cae' %}active{% endif %}">🔍 Consultar CAE</a>
+
+    <div class="nav-section">Cuenta</div>
+    <a href="/planes"                     class="{% if current_page == 'planes' %}active{% endif %}">💳 Planes</a>
+  </nav>
+
+  <!-- Footer: user info + logout -->
+  <div class="ia-sidebar-footer">
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <div class="ia-avatar" style="width:32px;height:32px;font-size:.85rem;flex-shrink:0">
+        {{ user.nombre[0]|upper }}
+      </div>
+      <div style="min-width:0">
+        <div class="fw-semibold text-truncate" style="font-size:.85rem">{{ user.nombre }}</div>
+        <div class="text-muted" style="font-size:.75rem">Plan {{ user.plan.nombre if user.plan else 'Free' }}</div>
+      </div>
+    </div>
+    <a href="/auth/logout"
+       class="btn btn-sm btn-outline-danger w-100"
+       style="font-size:.8rem">Cerrar sesión</a>
+  </div>
+
+</aside>
+{% endif %}
+
 <!-- ═══════════════════ NAVBAR ═══════════════════ -->
-<nav class="ia-navbar navbar navbar-expand-md fixed-top">
-  <div class="container-xl">
+<nav class="ia-navbar navbar fixed-top">
+  <div class="container-xl d-flex align-items-center gap-2">
+
+    {% if user %}
+    <!-- Sidebar toggle -->
+    <button id="sidebarToggle" title="Menú" aria-label="Abrir menú">
+      <span></span><span></span><span></span>
+    </button>
+    {% endif %}
 
     <!-- Logo -->
-    <a class="ia-logo" href="/">
+    <a class="ia-logo me-auto" href="/">
       <div class="ia-logo-icon">IA</div>
       <span class="ia-logo-text"><span class="text-accent">IA</span>Facturas</span>
     </a>
 
-    <!-- Mobile: dark toggle + hamburger -->
-    <div class="d-flex d-md-none align-items-center gap-2 ms-auto">
-      <button class="ia-dark-toggle" id="darkToggleMobile" title="Cambiar tema">🌙</button>
-      <button class="navbar-toggler ia-hamburger border-0" type="button"
-              data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-label="Menú">
-        <span class="navbar-toggler-icon"></span>
-      </button>
+    <!-- Right actions -->
+    <div class="d-flex align-items-center gap-2">
+      <button class="ia-dark-toggle" id="darkToggle" title="Cambiar tema">🌙</button>
+
+      {% if user %}
+        <div class="dropdown">
+          <div class="ia-avatar" data-bs-toggle="dropdown" style="cursor:pointer"
+               title="{{ user.nombre }}">
+            {{ user.nombre[0]|upper }}
+          </div>
+          <ul class="dropdown-menu dropdown-menu-end ia-dropdown shadow">
+            <li class="px-3 py-2 border-bottom" style="border-color:var(--bs-border-color)!important">
+              <div class="fw-bold" style="font-size:13px">{{ user.nombre }}</div>
+              <div class="text-muted" style="font-size:11px">Plan {{ user.plan.nombre if user.plan else 'Free' }}</div>
+            </li>
+            <li>
+              <a class="dropdown-item text-danger" style="font-size:13px" href="/auth/logout">
+                Cerrar sesión
+              </a>
+            </li>
+          </ul>
+        </div>
+      {% else %}
+        <a href="/auth/login" class="btn btn-sm ia-btn-ghost border">Ingresar</a>
+        <a href="/auth/register" class="btn btn-sm btn-primary">Registrarse</a>
+      {% endif %}
     </div>
-
-    <!-- Collapsible content -->
-    <div class="collapse navbar-collapse" id="navbarMain">
-      <!-- Nav links -->
-      <ul class="navbar-nav mx-auto mb-2 mb-md-0">
-        {% if user %}
-          <li class="nav-item">
-            <a class="nav-link ia-nav-link {% if current_page == 'inicio' %}active{% endif %}"
-               href="/app/inicio">🚀 Inicio</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link ia-nav-link {% if current_page == 'dashboard' %}active{% endif %}"
-               href="/app/dashboard">📊 Dashboard</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link ia-nav-link {% if current_page == 'upload' %}active{% endif %}"
-               href="/app/upload">📤 Analizar</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link ia-nav-link {% if current_page == 'historial' %}active{% endif %}"
-               href="/app/historial">📁 Historial</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link ia-nav-link {% if current_page == 'lotes' %}active{% endif %}"
-               href="/app/lotes">📦 Lotes</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link ia-nav-link {% if current_page == 'planes' %}active{% endif %}"
-               href="/planes">💳 Planes</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link ia-nav-link {% if current_page == 'consultar_cae' %}active{% endif %}"
-               href="/cae/consultar">🔍 Consultar CAE</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link ia-nav-link {% if current_page == 'pdf_toolkit' %}active{% endif %}"
-               href="/pdf-toolkit/herramientas">📄 Herramientas PDF</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link ia-nav-link {% if current_page == 'templates' %}active{% endif %}"
-               href="/templates/">🗂️ Plantillas</a>
-          </li>
-        {% else %}
-          <li class="nav-item">
-            <a class="nav-link ia-nav-link" href="/#features">Funciones</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link ia-nav-link" href="/planes">Precios</a>
-          </li>
-        {% endif %}
-      </ul>
-
-      <!-- Desktop actions -->
-      <div class="d-none d-md-flex align-items-center gap-2">
-        <button class="ia-dark-toggle" id="darkToggle" title="Cambiar tema">🌙</button>
-
-        {% if user %}
-          <div class="dropdown">
-            <div class="ia-avatar" data-bs-toggle="dropdown" style="cursor:pointer"
-                 title="{{ user.nombre }}">
-              {{ user.nombre[0]|upper }}
-            </div>
-            <ul class="dropdown-menu dropdown-menu-end ia-dropdown shadow">
-              <li class="px-3 py-2 border-bottom" style="border-color:var(--bs-border-color)!important">
-                <div class="fw-bold" style="font-size:13px">{{ user.nombre }}</div>
-                <div class="text-muted" style="font-size:11px">Plan {{ user.plan.nombre if user.plan else 'Free' }}</div>
-              </li>
-              <li>
-                <a class="dropdown-item text-danger" style="font-size:13px" href="/auth/logout">
-                  Cerrar sesión
-                </a>
-              </li>
-            </ul>
-          </div>
-        {% else %}
-          <a href="/auth/login" class="btn btn-sm ia-btn-ghost border">Ingresar</a>
-          <a href="/auth/register" class="btn btn-sm btn-primary">Registrarse</a>
-        {% endif %}
-      </div>
-
-      <!-- Mobile-only auth links (inside collapse) -->
-      <div class="d-md-none mt-3 pt-3 border-top" style="border-color:var(--bs-border-color)!important">
-        {% if user %}
-          <div class="px-2 py-2 rounded mb-2" style="background:rgba(0,0,0,0.04)">
-            <div class="fw-bold small">{{ user.nombre }}</div>
-            <div class="text-muted" style="font-size:11px">Plan {{ user.plan.nombre if user.plan else 'Free' }}</div>
-          </div>
-          <a href="/auth/logout" class="d-block py-2 px-2 text-danger text-decoration-none fw-semibold">
-            Cerrar sesión
-          </a>
-        {% else %}
-          <a href="/auth/login" class="d-block py-2 px-2 text-decoration-none fw-semibold mb-1">🔐 Ingresar</a>
-          <a href="/auth/register"
-             class="d-block py-2 px-3 text-decoration-none fw-bold text-white rounded"
-             style="background:var(--ia-accent)">✨ Registrarse gratis</a>
-        {% endif %}
-      </div>
-    </div><!-- /collapse -->
 
   </div>
 </nav>
@@ -248,7 +336,6 @@
   var cancelBtn = document.getElementById('feedbackCancelBtn');
   var submit = document.getElementById('feedbackSubmit');
   var msgEl  = document.getElementById('feedbackMsg');
-
   var archivoInput = document.getElementById('feedbackArchivo');
   var archivoNombreEl = document.getElementById('feedbackArchivoNombre');
 
@@ -317,14 +404,14 @@
 <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  // Dark mode toggle logic
+  // ── Dark mode ──────────────────────────────────────────────────
   function applyDarkToggleIcons() {
     var dark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-    document.querySelectorAll('#darkToggle, #darkToggleMobile').forEach(function(btn) {
+    document.querySelectorAll('#darkToggle').forEach(function(btn) {
       btn.textContent = dark ? '☀️' : '🌙';
     });
   }
-  document.querySelectorAll('#darkToggle, #darkToggleMobile').forEach(function(btn) {
+  document.querySelectorAll('#darkToggle').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var html = document.documentElement;
       var isDark = html.getAttribute('data-bs-theme') === 'dark';
@@ -334,6 +421,35 @@
     });
   });
   applyDarkToggleIcons();
+
+  // ── Sidebar ────────────────────────────────────────────────────
+  (function () {
+    var sidebar   = document.getElementById('iaSidebar');
+    var backdrop  = document.getElementById('sidebarBackdrop');
+    var toggleBtn = document.getElementById('sidebarToggle');
+    var closeBtn  = document.getElementById('sidebarClose');
+    if (!sidebar) return;
+
+    function openSidebar() {
+      sidebar.classList.add('open');
+      backdrop.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeSidebar() {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    toggleBtn.addEventListener('click', openSidebar);
+    closeBtn.addEventListener('click', closeSidebar);
+    backdrop.addEventListener('click', closeSidebar);
+
+    // Cerrar con Escape
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeSidebar();
+    });
+  })();
 </script>
 {% block scripts %}{% endblock %}
 
