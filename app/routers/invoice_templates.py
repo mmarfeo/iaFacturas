@@ -49,12 +49,17 @@ def _convert_template_for_vps(template_data: dict) -> dict:
 
     converted_zones = []
     for zona in template_data.get("zonas", []):
-        bbox = [
-            round(zona["x0"] * pw / vw, 2),
-            round(zona["y0"] * ph / vh, 2),
-            round(zona["x1"] * pw / vw, 2),
-            round(zona["y1"] * ph / vh, 2),
-        ]
+        x0_pts = round(zona["x0"] * pw / vw, 2)
+        y0_pts = round(zona["y0"] * ph / vh, 2)   # top-left origin (y down)
+        x1_pts = round(zona["x1"] * pw / vw, 2)
+        y1_pts = round(zona["y1"] * ph / vh, 2)   # bottom in top-left system
+        # VPS expects y from bottom-left PDF origin
+        bbox = {
+            "x": x0_pts,
+            "y": round(ph - y1_pts, 2),
+            "w": round(x1_pts - x0_pts, 2),
+            "h": round(y1_pts - y0_pts, 2),
+        }
         converted_zones.append({
             "field": zona["name"],
             "type": zona.get("type", "rect"),
