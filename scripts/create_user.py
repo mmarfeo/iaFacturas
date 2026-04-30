@@ -22,7 +22,7 @@ from app.models.plan import Plan
 from app.models.usuario import Usuario
 
 
-async def crear_usuario(email: str, nombre: str, password: str, plan_nombre: str):
+async def crear_usuario(email: str, nombre: str, password: str, plan_nombre: str, is_admin: bool = False):
     async with AsyncSessionLocal() as db:
         # Verificar duplicado
         existing = await db.execute(select(Usuario).where(Usuario.email == email.lower().strip()))
@@ -44,17 +44,19 @@ async def crear_usuario(email: str, nombre: str, password: str, plan_nombre: str
             plan_id=plan_obj.id,
             is_active=True,
             is_verified=True,
+            is_admin=is_admin,
         )
         db.add(usuario)
         await db.commit()
         await db.refresh(usuario)
 
         print(f"\n✓ Usuario creado exitosamente:")
-        print(f"  ID     : {usuario.id}")
-        print(f"  Email  : {usuario.email}")
-        print(f"  Nombre : {usuario.nombre}")
-        print(f"  Plan   : {plan_obj.nombre}")
-        print(f"  Activo : {usuario.is_active}")
+        print(f"  ID        : {usuario.id}")
+        print(f"  Email     : {usuario.email}")
+        print(f"  Nombre    : {usuario.nombre}")
+        print(f"  Plan      : {plan_obj.nombre}")
+        print(f"  Admin     : {usuario.is_admin}")
+        print(f"  Activo    : {usuario.is_active}")
         print(f"  Verificado: {usuario.is_verified}\n")
 
 
@@ -64,6 +66,7 @@ def main():
     parser.add_argument("--nombre",   default=None)
     parser.add_argument("--password", default=None)
     parser.add_argument("--plan",     default="pro", choices=["free", "pro"])
+    parser.add_argument("--admin",    action="store_true", help="Crear como administrador")
     args = parser.parse_args()
 
     email    = args.email    or input("Email: ").strip()
@@ -79,7 +82,7 @@ def main():
         print("ERROR: La contraseña debe tener al menos 6 caracteres.")
         sys.exit(1)
 
-    asyncio.run(crear_usuario(email, nombre, password, plan))
+    asyncio.run(crear_usuario(email, nombre, password, plan, is_admin=args.admin))
 
 
 if __name__ == "__main__":

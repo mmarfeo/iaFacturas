@@ -1,0 +1,576 @@
+{% extends "base.html" %}
+{% block title %}Administración de Usuarios{% endblock %}
+
+{% block head %}
+<style>
+.admin-page { min-height: 100vh; background: var(--bs-body-bg); }
+.admin-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 20px 60px; }
+
+/* Status badge */
+.status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+.status-dot.active   { background:#10b981; }
+.status-dot.inactive { background:#ef4444; }
+
+/* Tabla permisos */
+#permissionsTable th, #permissionsTable td { vertical-align:middle; }
+#permissionsTable .perm-hit { cursor:pointer; user-select:none; }
+#permissionsTable .perm-hit label {
+  cursor:pointer; min-height:2.25rem;
+  display:flex; align-items:center; justify-content:center;
+  width:100%; margin:0; padding:0 4px;
+}
+#permissionsTable .perm-hit-sin .form-check-input:checked {
+  background-color: var(--bs-danger);
+  border-color: var(--bs-danger);
+}
+
+/* Avatar inicial */
+.ua-initials {
+  width:32px; height:32px; border-radius:50%;
+  background:var(--ia-accent,#6366f1); color:#fff;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:.8rem; font-weight:700; flex-shrink:0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-page ia-page">
+<div class="admin-wrap">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+      <h1 class="fw-bold mb-0" style="font-size:1.5rem">⚙️ Administración de Usuarios</h1>
+      <p class="text-muted mb-0 mt-1" style="font-size:.85rem">Creá, editá y asigná permisos a los usuarios del sistema.</p>
+    </div>
+    <button class="btn btn-primary" onclick="abrirModalCrear()">
+      + Nuevo usuario
+    </button>
+  </div>
+
+  <!-- Card tabla -->
+  <div class="card border-0 shadow-sm rounded-3">
+    <div class="card-header border-0 d-flex align-items-center gap-3 flex-wrap py-3">
+      <input type="search" id="searchInput" class="form-control form-control-sm"
+             placeholder="Buscar por nombre o email…" style="max-width:280px">
+      <span id="totalBadge" class="badge bg-secondary ms-auto">0 usuarios</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="cargarUsuarios()">↺ Actualizar</button>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:40px"></th>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th style="width:90px">Rol</th>
+            <th style="width:100px">Estado</th>
+            <th style="width:110px">Registro</th>
+            <th style="width:90px">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="usersTableBody">
+          <tr><td colspan="7" class="text-center py-4 text-muted">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══ MODAL CREAR / EDITAR ═══════════════════════════════════════════════ -->
+<div class="modal fade" id="userModal" data-bs-backdrop="static" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered modal-lg">
+<div class="modal-content">
+
+  <div class="modal-header pb-0 border-0">
+    <h5 class="modal-title fw-bold" id="userModalTitle">Nuevo Usuario</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  </div>
+
+  <!-- Tabs (solo al editar) -->
+  <div id="modalTabsWrap" style="display:none" class="px-3 pt-2">
+    <ul class="nav nav-tabs" id="userModalTabs">
+      <li class="nav-item">
+        <button class="nav-link active" id="tab-datos-btn" data-bs-toggle="tab" data-bs-target="#tab-datos" type="button">
+          Datos del usuario
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" id="tab-permisos-btn" data-bs-toggle="tab" data-bs-target="#tab-permisos" type="button">
+          Permisos
+        </button>
+      </li>
+    </ul>
+  </div>
+
+  <div class="modal-body pt-3">
+    <div id="modalMsg" class="alert mb-3" style="display:none"></div>
+    <input type="hidden" id="modalUserId">
+
+    <div class="tab-content">
+
+      <!-- ── Tab Datos ────────────────────────────────────────── -->
+      <div class="tab-pane fade show active" id="tab-datos">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Nombre completo <span class="text-danger">*</span></label>
+            <input type="text" id="fNombre" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Email <span class="text-danger">*</span></label>
+            <input type="email" id="fEmail" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" id="fPasswordLabel">
+              Contraseña <span class="text-danger">*</span>
+            </label>
+            <input type="password" id="fPassword" class="form-control" placeholder="Mínimo 6 caracteres">
+            <div id="fPasswordHint" class="form-text" style="display:none">
+              Dejá vacío para no cambiar la contraseña
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Plan</label>
+            <select id="fPlan" class="form-select">
+              <option value="free">Free</option>
+              <option value="pro">Pro</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <div class="d-flex align-items-center gap-4 mt-1">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="fIsAdmin" role="switch">
+                <label class="form-check-label small fw-semibold" for="fIsAdmin">
+                  Administrador
+                  <span class="text-muted fw-normal">(acceso total, sin restricciones)</span>
+                </label>
+              </div>
+              <div class="form-check form-switch" id="fIsActiveWrap" style="display:none">
+                <input class="form-check-input" type="checkbox" id="fIsActive" role="switch" checked>
+                <label class="form-check-label small fw-semibold" for="fIsActive">Activo</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tab Permisos ─────────────────────────────────────── -->
+      <div class="tab-pane fade" id="tab-permisos">
+        <p class="text-muted small mb-3">
+          Marcá <strong>Ver</strong> y/o <strong>Editar</strong> por sección.
+          Si ninguna está marcada queda <strong class="text-danger">Sin acceso</strong>.
+          Los <strong>Administradores</strong> tienen acceso total automáticamente.
+        </p>
+
+        <div id="adminPermisosBadge" class="alert alert-info py-2 mb-3" style="display:none;font-size:.85rem">
+          ⚙️ Este usuario es <strong>Administrador</strong> — tiene acceso total a todas las secciones independientemente de los permisos marcados.
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle mb-0" id="permissionsTable">
+            <thead class="table-dark">
+              <tr>
+                <th style="width:55%">Sección</th>
+                <th class="text-center text-white">Ver</th>
+                <th class="text-center text-white">Editar</th>
+                <th class="text-center text-white bg-danger border-danger" style="width:110px">Sin acceso</th>
+              </tr>
+            </thead>
+            <tbody id="permissionsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /tab-content -->
+  </div>
+
+  <div class="modal-footer border-0 pt-0">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button type="button" class="btn btn-primary" id="btnGuardar" onclick="guardarUsuario()">Guardar</button>
+  </div>
+
+</div>
+</div>
+</div>
+
+<!-- ═══ MODAL CONFIRMAR ELIMINAR ════════════════════════════════════════════ -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content">
+  <div class="modal-header border-0 pb-0">
+    <h5 class="modal-title fw-bold">Confirmar eliminación</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  </div>
+  <div class="modal-body">
+    <div id="deleteMsg" class="alert alert-danger mb-2" style="display:none"></div>
+    <p id="deleteText" class="mb-0"></p>
+  </div>
+  <div class="modal-footer border-0 pt-0">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button type="button" class="btn btn-danger" id="btnConfirmDelete" onclick="confirmarEliminar()">Eliminar</button>
+  </div>
+</div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+'use strict';
+
+// ── Estado ──────────────────────────────────────────────────────────────────
+var allUsers     = [];
+var sections     = [];   // PERMISSION_SECTIONS del server
+var deletingId   = null;
+var editingId    = null;
+
+// ── Inicialización ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  cargarSecciones();
+  cargarUsuarios();
+  document.getElementById('searchInput').addEventListener('input', filtrarTabla);
+
+  // Cuando cambia is_admin, refrescar badge en tab permisos
+  document.getElementById('fIsAdmin').addEventListener('change', function () {
+    actualizarAdminBadge();
+  });
+
+  // Limpiar modal al cerrar
+  document.getElementById('userModal').addEventListener('hidden.bs.modal', resetModal);
+  document.getElementById('deleteModal').addEventListener('hidden.bs.modal', function () {
+    deletingId = null;
+    document.getElementById('deleteMsg').style.display = 'none';
+  });
+});
+
+// ── Cargar secciones de permisos ─────────────────────────────────────────────
+function cargarSecciones() {
+  fetch('/admin/usuarios/permissions-schema')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if (d.success) sections = d.sections; });
+}
+
+// ── Cargar usuarios ──────────────────────────────────────────────────────────
+function cargarUsuarios() {
+  document.getElementById('usersTableBody').innerHTML =
+    '<tr><td colspan="7" class="text-center py-4 text-muted">Cargando…</td></tr>';
+
+  fetch('/admin/usuarios/list')
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (!d.success) { mostrarError('Error al cargar usuarios'); return; }
+      allUsers = d.data;
+      document.getElementById('totalBadge').textContent = allUsers.length + ' usuarios';
+      renderTabla(allUsers);
+    })
+    .catch(function(){ mostrarError('Error de red al cargar usuarios'); });
+}
+window.cargarUsuarios = cargarUsuarios;
+
+// ── Renderizar tabla ─────────────────────────────────────────────────────────
+function renderTabla(users) {
+  var tbody = document.getElementById('usersTableBody');
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">Sin resultados</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(function(u) {
+    var initials = u.nombre.split(' ').map(function(p){ return p[0] || ''; }).slice(0,2).join('').toUpperCase();
+    var rolBadge = u.is_admin
+      ? '<span class="badge bg-danger">Admin</span>'
+      : '<span class="badge bg-secondary">Usuario</span>';
+    var statusHtml = u.is_active
+      ? '<span class="status-dot active"></span>Activo'
+      : '<span class="status-dot inactive"></span>Inactivo';
+    var toggleTxt   = u.is_active ? 'Desactivar' : 'Activar';
+    var toggleClass = u.is_active ? 'text-danger'  : 'text-success';
+    return '<tr>' +
+      '<td><div class="ua-initials">' + initials + '</div></td>' +
+      '<td class="fw-semibold small">' + esc(u.nombre) + '</td>' +
+      '<td class="small text-muted">' + esc(u.email) + '</td>' +
+      '<td>' + rolBadge + '</td>' +
+      '<td class="small">' + statusHtml + '</td>' +
+      '<td class="small text-muted">' + esc(u.created_at) + '</td>' +
+      '<td>' +
+        '<div class="dropdown">' +
+          '<button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">•••</button>' +
+          '<ul class="dropdown-menu dropdown-menu-end">' +
+            '<li><a class="dropdown-item" href="#" onclick=\'abrirModalEditar(' + JSON.stringify(u) + ');return false\'>Editar</a></li>' +
+            '<li><a class="dropdown-item ' + toggleClass + '" href="#" onclick="toggleStatus(' + u.id + ',' + !u.is_active + ');return false">' + toggleTxt + '</a></li>' +
+            '<li><hr class="dropdown-divider"></li>' +
+            '<li><a class="dropdown-item text-danger" href="#" onclick="abrirModalEliminar(' + u.id + ',\'' + esc(u.nombre) + '\');return false">Eliminar</a></li>' +
+          '</ul>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ── Filtro búsqueda ──────────────────────────────────────────────────────────
+function filtrarTabla() {
+  var term = document.getElementById('searchInput').value.toLowerCase().trim();
+  if (!term) { renderTabla(allUsers); return; }
+  renderTabla(allUsers.filter(function(u) {
+    return u.nombre.toLowerCase().includes(term) || u.email.toLowerCase().includes(term);
+  }));
+}
+
+// ── Modal crear ──────────────────────────────────────────────────────────────
+function abrirModalCrear() {
+  resetModal();
+  document.getElementById('userModalTitle').textContent = 'Nuevo Usuario';
+  document.getElementById('modalTabsWrap').style.display = 'none';
+  mostrarTabDatos();
+  getModal().show();
+}
+window.abrirModalCrear = abrirModalCrear;
+
+// ── Modal editar ─────────────────────────────────────────────────────────────
+function abrirModalEditar(u) {
+  resetModal();
+  editingId = u.id;
+  document.getElementById('modalUserId').value = u.id;
+  document.getElementById('userModalTitle').textContent = 'Editar Usuario';
+  document.getElementById('fNombre').value  = u.nombre;
+  document.getElementById('fEmail').value   = u.email;
+  document.getElementById('fIsAdmin').checked  = !!u.is_admin;
+  document.getElementById('fIsActive').checked = !!u.is_active;
+  document.getElementById('fPlan').value = u.plan_id === 2 ? 'pro' : 'free';
+  document.getElementById('fPasswordHint').style.display = '';
+  document.getElementById('fPasswordLabel').innerHTML = 'Contraseña';
+  document.getElementById('fIsActiveWrap').style.display = '';
+
+  // Tabs
+  document.getElementById('modalTabsWrap').style.display = '';
+  mostrarTabDatos();
+
+  // Permisos
+  buildPermissionsTable(u.permisos);
+  actualizarAdminBadge();
+
+  getModal().show();
+}
+window.abrirModalEditar = abrirModalEditar;
+
+// ── Guardar (crear o editar) ─────────────────────────────────────────────────
+function guardarUsuario() {
+  var nombre   = document.getElementById('fNombre').value.trim();
+  var email    = document.getElementById('fEmail').value.trim();
+  var password = document.getElementById('fPassword').value;
+  var isAdmin  = document.getElementById('fIsAdmin').checked;
+  var isActive = document.getElementById('fIsActive').checked;
+  var plan     = document.getElementById('fPlan').value;
+  var userId   = document.getElementById('modalUserId').value;
+  var isEditing = !!userId;
+
+  if (!nombre || !email) { showModalMsg('Nombre y email son obligatorios.', 'danger'); return; }
+  if (!isEditing && !password) { showModalMsg('La contraseña es obligatoria para nuevos usuarios.', 'danger'); return; }
+
+  var permisos = {};
+  if (isEditing) permisos = collectPermisos();
+
+  var url  = isEditing ? '/admin/usuarios/update' : '/admin/usuarios/create';
+  var body = isEditing
+    ? { id: parseInt(userId), nombre, email, password, is_admin: isAdmin, is_active: isActive, plan, permisos }
+    : { nombre, email, password, is_admin: isAdmin, plan };
+
+  document.getElementById('btnGuardar').disabled = true;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d) {
+    if (d.success) {
+      showModalMsg(d.message, 'success');
+      setTimeout(function(){ getModal().hide(); cargarUsuarios(); }, 900);
+    } else {
+      showModalMsg(d.message || 'Error al guardar.', 'danger');
+    }
+  })
+  .catch(function(){ showModalMsg('Error de red.', 'danger'); })
+  .finally(function(){ document.getElementById('btnGuardar').disabled = false; });
+}
+
+// ── Toggle activo/inactivo ────────────────────────────────────────────────────
+function toggleStatus(id, newActive) {
+  fetch('/admin/usuarios/toggle-status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: id, is_active: newActive }),
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d) {
+    if (d.success) cargarUsuarios();
+    else alert(d.message || 'Error al cambiar estado.');
+  });
+}
+window.toggleStatus = toggleStatus;
+
+// ── Modal eliminar ────────────────────────────────────────────────────────────
+function abrirModalEliminar(id, nombre) {
+  deletingId = id;
+  document.getElementById('deleteText').textContent =
+    '¿Estás seguro que querés eliminar al usuario "' + nombre + '"? Esta acción no se puede deshacer.';
+  document.getElementById('deleteMsg').style.display = 'none';
+  new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+window.abrirModalEliminar = abrirModalEliminar;
+
+function confirmarEliminar() {
+  if (!deletingId) return;
+  document.getElementById('btnConfirmDelete').disabled = true;
+  fetch('/admin/usuarios/' + deletingId, { method: 'DELETE' })
+  .then(function(r){ return r.json(); })
+  .then(function(d) {
+    if (d.success) {
+      bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+      cargarUsuarios();
+    } else {
+      var msg = document.getElementById('deleteMsg');
+      msg.textContent = d.message;
+      msg.style.display = '';
+    }
+  })
+  .finally(function(){ document.getElementById('btnConfirmDelete').disabled = false; });
+}
+window.confirmarEliminar = confirmarEliminar;
+
+// ── Tabla de permisos ─────────────────────────────────────────────────────────
+function buildPermissionsTable(permisosJson) {
+  var current = {};
+  try { current = JSON.parse(permisosJson || '{}') || {}; } catch(e) {}
+
+  var tbody = document.getElementById('permissionsTableBody');
+  if (!sections.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-muted small text-center py-3">Cargando secciones…</td></tr>';
+    // Reintentar en 500ms si las secciones aún no cargaron
+    setTimeout(function(){ buildPermissionsTable(permisosJson); }, 500);
+    return;
+  }
+
+  tbody.innerHTML = sections.map(function(sec) {
+    var val  = current[sec.key] || {};
+    var ver  = !!(typeof val === 'object' ? val.ver : false);
+    var edit = !!(typeof val === 'object' ? val.editar : false);
+    var sin  = !ver && !edit;
+    return '<tr>' +
+      '<td class="small">' + esc(sec.label) + '</td>' +
+      '<td class="text-center perm-hit perm-hit-ver">' +
+        '<label><input type="checkbox" name="perm_ver_' + sec.key + '" class="form-check-input m-0" ' + (ver ? 'checked' : '') + '></label>' +
+      '</td>' +
+      '<td class="text-center perm-hit perm-hit-editar">' +
+        '<label><input type="checkbox" name="perm_editar_' + sec.key + '" class="form-check-input m-0" ' + (edit ? 'checked' : '') + '></label>' +
+      '</td>' +
+      '<td class="text-center perm-hit perm-hit-sin bg-danger bg-opacity-10">' +
+        '<label><input type="checkbox" name="perm_sin_' + sec.key + '" class="form-check-input m-0" ' + (sin ? 'checked' : '') + '></label>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  // Delegación de eventos en la tabla
+  document.getElementById('permissionsTable').addEventListener('change', function(e) {
+    var t = e.target;
+    if (t.type !== 'checkbox' || !t.name || t.name.indexOf('perm_') !== 0) return;
+    syncPermRow(t);
+  });
+}
+
+function syncPermRow(input) {
+  var key = null;
+  if (input.name.indexOf('perm_sin_')    === 0) key = input.name.slice(9);
+  else if (input.name.indexOf('perm_ver_')    === 0) key = input.name.slice(9);
+  else if (input.name.indexOf('perm_editar_') === 0) key = input.name.slice(12);
+  if (!key) return;
+
+  var sin = document.querySelector('[name="perm_sin_' + key + '"]');
+  var ver = document.querySelector('[name="perm_ver_' + key + '"]');
+  var ed  = document.querySelector('[name="perm_editar_' + key + '"]');
+  if (!sin || !ver || !ed) return;
+
+  if (input === sin) {
+    if (sin.checked) { ver.checked = false; ed.checked = false; }
+  } else {
+    if (ver.checked || ed.checked) sin.checked = false;
+    if (!ver.checked && !ed.checked) sin.checked = true;
+  }
+}
+
+function collectPermisos() {
+  var permisos = {};
+  sections.forEach(function(sec) {
+    var sin = document.querySelector('[name="perm_sin_'    + sec.key + '"]');
+    var ver = document.querySelector('[name="perm_ver_'    + sec.key + '"]');
+    var ed  = document.querySelector('[name="perm_editar_' + sec.key + '"]');
+    if (!sin || !ver || !ed) { permisos[sec.key] = { ver: false, editar: false }; return; }
+    permisos[sec.key] = sin.checked
+      ? { ver: false, editar: false }
+      : { ver: !!ver.checked, editar: !!ed.checked };
+  });
+  return permisos;
+}
+
+function actualizarAdminBadge() {
+  var isAdmin = document.getElementById('fIsAdmin').checked;
+  var badge   = document.getElementById('adminPermisosBadge');
+  if (badge) badge.style.display = isAdmin ? '' : 'none';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getModal() {
+  return bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal'));
+}
+
+function mostrarTabDatos() {
+  var btn = document.getElementById('tab-datos-btn');
+  if (btn && typeof bootstrap !== 'undefined') bootstrap.Tab.getOrCreateInstance(btn).show();
+}
+
+function resetModal() {
+  editingId = null;
+  document.getElementById('modalUserId').value = '';
+  document.getElementById('fNombre').value  = '';
+  document.getElementById('fEmail').value   = '';
+  document.getElementById('fPassword').value = '';
+  document.getElementById('fIsAdmin').checked  = false;
+  document.getElementById('fIsActive').checked = true;
+  document.getElementById('fPlan').value = 'free';
+  document.getElementById('fPasswordHint').style.display = 'none';
+  document.getElementById('fPasswordLabel').innerHTML = 'Contraseña <span class="text-danger">*</span>';
+  document.getElementById('fIsActiveWrap').style.display = 'none';
+  document.getElementById('modalTabsWrap').style.display = 'none';
+  document.getElementById('adminPermisosBadge').style.display = 'none';
+  hideModalMsg();
+}
+
+function showModalMsg(text, type) {
+  var el = document.getElementById('modalMsg');
+  el.className = 'alert alert-' + type + ' mb-3';
+  el.textContent = text;
+  el.style.display = '';
+}
+
+function hideModalMsg() {
+  document.getElementById('modalMsg').style.display = 'none';
+}
+
+function mostrarError(msg) {
+  document.getElementById('usersTableBody').innerHTML =
+    '<tr><td colspan="7" class="text-center text-danger py-4">' + esc(msg) + '</td></tr>';
+}
+
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+})();
+</script>
+{% endblock %}
