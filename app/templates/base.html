@@ -16,9 +16,11 @@
     (function() {
       var dark = localStorage.getItem('ia-dark') === '1';
       document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
-      // Sidebar: abierto por defecto en desktop
+      {% if user %}
+      // Sidebar: abierto por defecto en desktop (solo si hay sesión activa)
       var sbOpen = localStorage.getItem('ia-sb') !== '0';
       if (sbOpen) document.documentElement.classList.add('sb-open');
+      {% endif %}
     })();
   </script>
 
