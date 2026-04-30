@@ -1,0 +1,155 @@
+version: "3.9"
+
+# ══════════════════════════════════════════════════════════════════
+#  STAGING — stack aislado en el mismo VPS
+#  Dominio:    staging.iafacturas.dewoc.com
+#  Puerto:     8083 (acceso directo interno)
+#  Contenedores: prefijo iafacturas_stg_*
+#  Volúmenes:    prefijo *_stg (independientes de producción)
+#  Ejecutar:   docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
+# ══════════════════════════════════════════════════════════════════
+
+services:
+
+  # ─────────────────────────────────────────────
+  # FastAPI — API principal + Jinja2 templates
+  # ─────────────────────────────────────────────
+  api:
+    build: .
+    container_name: iafacturas_stg_api
+    volumes:
+      - .:/app
+      - uploads_stg_data:/app/uploads
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:7b}
+      - OLLAMA_ENABLED=${OLLAMA_ENABLED:-false}
+      - MERCADOPAGO_ACCESS_TOKEN=${MERCADOPAGO_ACCESS_TOKEN}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_FROM=${SMTP_FROM}
+      - APP_ENV=staging
+      - APP_URL=${APP_URL:-https://staging.iafacturas.dewoc.com}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - iafacturas_stg_net
+
+  # ─────────────────────────────────────────────
+  # Celery Worker
+  # ─────────────────────────────────────────────
+  celery:
+    build: .
+    container_name: iafacturas_stg_celery
+    command: celery -A tasks.celery_app worker --loglevel=info --concurrency=1 -Q facturas
+    volumes:
+      - .:/app
+      - uploads_stg_data:/app/uploads
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:7b}
+      - OLLAMA_ENABLED=${OLLAMA_ENABLED:-false}
+      - APP_ENV=staging
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - iafacturas_stg_net
+
+  # ─────────────────────────────────────────────
+  # PostgreSQL — base de datos de staging (aislada)
+  # ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: iafacturas_stg_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-iafacturas_stg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-iafacturas_stg_db}
+    volumes:
+      - postgres_stg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-iafacturas_stg}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - iafacturas_stg_net
+
+  # ─────────────────────────────────────────────
+  # Redis — caché y cola Celery de staging
+  # ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: iafacturas_stg_redis
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_stg_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - iafacturas_stg_net
+
+  # ─────────────────────────────────────────────
+  # Nginx — reverse proxy de staging
+  # Traefik rutea staging.iafacturas.dewoc.com → este contenedor
+  # ─────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: iafacturas_stg_nginx
+    ports:
+      - "8083:80"   # acceso directo interno (prod usa 8082)
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.iafacturas-stg.rule=Host(`staging.iafacturas.dewoc.com`)
+      - traefik.http.routers.iafacturas-stg.entrypoints=websecure
+      - traefik.http.routers.iafacturas-stg.tls=true
+      - traefik.http.services.iafacturas-stg.loadbalancer.server.port=80
+      - traefik.docker.network=n8n_evoapi
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./app/static:/app/static:ro
+      - uploads_stg_data:/app/uploads:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - iafacturas_stg_net
+      - n8n_evoapi
+
+volumes:
+  postgres_stg_data:
+  redis_stg_data:
+  uploads_stg_data:
+
+networks:
+  iafacturas_stg_net:
+    driver: bridge
+  n8n_evoapi:
+    external: true
