@@ -202,6 +202,15 @@
         style="resize:vertical"></textarea>
     </div>
 
+    <div class="mb-3">
+      <label class="form-label small fw-semibold">
+        Adjuntar PDF
+        <span class="text-muted fw-normal">(opcional, máx. 10 MB)</span>
+      </label>
+      <input type="file" id="feedbackArchivo" class="form-control form-control-sm" accept=".pdf">
+      <div id="feedbackArchivoNombre" class="small text-muted mt-1" style="display:none"></div>
+    </div>
+
     <div id="feedbackMsg" class="small mb-2" style="display:none"></div>
 
     <div class="d-flex justify-content-end gap-2">
@@ -240,9 +249,23 @@
   var submit = document.getElementById('feedbackSubmit');
   var msgEl  = document.getElementById('feedbackMsg');
 
+  var archivoInput = document.getElementById('feedbackArchivo');
+  var archivoNombreEl = document.getElementById('feedbackArchivoNombre');
+
+  archivoInput.addEventListener('change', function () {
+    if (archivoInput.files.length) {
+      archivoNombreEl.textContent = archivoInput.files[0].name;
+      archivoNombreEl.style.display = '';
+    } else {
+      archivoNombreEl.style.display = 'none';
+    }
+  });
+
   function openDialog() {
     msgEl.style.display = 'none';
     document.getElementById('feedbackMensaje').value = '';
+    archivoInput.value = '';
+    archivoNombreEl.style.display = 'none';
     document.querySelectorAll('input[name="fbTipo"]').forEach(function(r){ r.checked = false; });
     dialog.showModal();
   }
@@ -259,12 +282,16 @@
     if (!tipoEl) { showMsg('Seleccioná un tipo.', 'danger'); return; }
     if (!mensaje) { showMsg('Escribí un mensaje.', 'danger'); return; }
 
+    var fd = new FormData();
+    fd.append('tipo', tipoEl.value);
+    fd.append('mensaje', mensaje);
+    fd.append('pagina', location.pathname);
+    if (archivoInput.files.length) {
+      fd.append('archivo', archivoInput.files[0]);
+    }
+
     submit.disabled = true;
-    fetch('/feedback/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo: tipoEl.value, mensaje: mensaje, pagina: location.pathname })
-    })
+    fetch('/feedback/send', { method: 'POST', body: fd })
     .then(function(r){ return r.json(); })
     .then(function(data) {
       if (data.success) {

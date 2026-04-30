@@ -13,11 +13,12 @@
     <table class="table table-sm table-hover align-middle">
       <thead class="table-light">
         <tr>
-          <th style="width:160px">Fecha</th>
-          <th style="width:100px">Tipo</th>
+          <th style="width:145px">Fecha</th>
+          <th style="width:95px">Tipo</th>
           <th>Mensaje</th>
-          <th style="width:80px">Usuario</th>
-          <th style="width:180px">Página</th>
+          <th style="width:75px">Usuario</th>
+          <th style="width:160px">Página</th>
+          <th style="width:80px">Adjunto</th>
         </tr>
       </thead>
       <tbody>
@@ -35,9 +36,23 @@
               <span class="badge bg-secondary">Otro</span>
             {% endif %}
           </td>
-          <td style="white-space:pre-wrap;max-width:500px">{{ fb.mensaje }}</td>
+          <td style="white-space:pre-wrap;max-width:480px">{{ fb.mensaje }}</td>
           <td class="text-muted small">{{ fb.usuario_id or '—' }}</td>
-          <td class="text-muted small text-truncate" style="max-width:180px" title="{{ fb.pagina or '' }}">{{ fb.pagina or '—' }}</td>
+          <td class="text-muted small text-truncate" style="max-width:160px" title="{{ fb.pagina or '' }}">
+            {{ fb.pagina or '—' }}
+          </td>
+          <td>
+            {% if fb.archivo_path %}
+              <a href="/feedback/download/{{ fb.id }}"
+                 class="btn btn-sm btn-outline-primary py-0 px-2"
+                 title="{{ fb.archivo_nombre }}"
+                 download>
+                PDF
+              </a>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

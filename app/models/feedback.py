@@ -15,6 +15,8 @@ class UserFeedback(Base):
     tipo: Mapped[str] = mapped_column(String(20), nullable=False)   # mejora | error | consulta | otro
     mensaje: Mapped[str] = mapped_column(Text, nullable=False)
     pagina: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    archivo_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    archivo_nombre: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
 
     usuario: Mapped[Optional["Usuario"]] = relationship("Usuario", back_populates="feedbacks")
