@@ -231,6 +231,7 @@ async def templates_extract(
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 f"{settings.vps_extract_url}/extract",
+                headers={"X-API-Key": settings.vps_api_key},
                 files={"file": (pdf.filename or "documento.pdf", BytesIO(pdf_bytes), "application/pdf")},
                 data={"template": json.dumps(vps_template)},
             )

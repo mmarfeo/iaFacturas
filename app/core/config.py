@@ -37,6 +37,7 @@ class Settings(BaseSettings):
 
     # VPS document-ai (extracción con plantillas)
     vps_extract_url: str = "http://localhost:8001"
+    vps_api_key: str = "demo_key_123"
 
     # OCR
     ocr_dpi: int = 200            # DPI para escaneos
