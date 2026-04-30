@@ -1,0 +1,476 @@
+{% extends "base.html" %}
+{% block title %}Ayuda — Cómo usar IAFacturas{% endblock %}
+
+{% block head %}
+<style>
+.ayuda-page { min-height: 100vh; background: var(--bs-body-bg); }
+.ayuda-wrap { max-width: 1100px; margin: 0 auto; padding: 40px 20px 80px; }
+
+/* Hero */
+.ayuda-hero {
+  background: linear-gradient(135deg, rgba(99,102,241,.1) 0%, rgba(99,102,241,.03) 100%);
+  border: 1px solid rgba(99,102,241,.2);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  margin-bottom: 2.5rem;
+}
+
+/* Sección */
+.ayuda-section-title {
+  font-size: .7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--bs-secondary-color);
+  margin: 2.5rem 0 1rem;
+  padding-bottom: .4rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* Cards de feature */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.1rem;
+}
+.feature-card {
+  border: 1.5px solid var(--bs-border-color);
+  border-radius: 14px;
+  padding: 1.3rem 1.4rem;
+  background: var(--bs-body-bg);
+  transition: border-color .2s, box-shadow .2s;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.feature-card:hover {
+  border-color: var(--ia-accent, #6366f1);
+  box-shadow: 0 4px 20px rgba(99,102,241,.1);
+}
+.feature-card__icon  { font-size: 1.8rem; line-height: 1; }
+.feature-card__title { font-weight: 700; font-size: .97rem; }
+.feature-card__desc  { font-size: .83rem; color: var(--bs-secondary-color); line-height: 1.55; flex: 1; }
+.feature-card__steps {
+  list-style: none;
+  padding: 0; margin: .3rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+.feature-card__steps li {
+  font-size: .8rem;
+  color: var(--bs-secondary-color);
+  padding-left: 1.1rem;
+  position: relative;
+}
+.feature-card__steps li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--ia-accent, #6366f1);
+  font-size: .75rem;
+}
+.feature-card__footer {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .4rem;
+  flex-wrap: wrap;
+}
+.tour-btn {
+  font-size: .78rem;
+  padding: .25rem .75rem;
+  border-radius: 20px;
+  border: 1.5px solid var(--ia-accent, #6366f1);
+  color: var(--ia-accent, #6366f1);
+  background: none;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  text-decoration: none;
+  display: inline-block;
+}
+.tour-btn:hover {
+  background: var(--ia-accent, #6366f1);
+  color: #fff;
+}
+.go-btn {
+  font-size: .78rem;
+  padding: .25rem .75rem;
+  border-radius: 20px;
+  background: var(--bs-tertiary-bg);
+  color: var(--bs-body-color);
+  text-decoration: none;
+  border: 1.5px solid var(--bs-border-color);
+  transition: border-color .15s;
+}
+.go-btn:hover { border-color: var(--bs-secondary-color); color: var(--bs-body-color); }
+
+/* FAQ */
+.faq-item {
+  border: 1px solid var(--bs-border-color);
+  border-radius: 10px;
+  margin-bottom: .6rem;
+  overflow: hidden;
+}
+.faq-q {
+  padding: .85rem 1.1rem;
+  font-weight: 600;
+  font-size: .88rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bs-body-bg);
+  user-select: none;
+}
+.faq-q:hover { background: var(--bs-tertiary-bg); }
+.faq-a {
+  font-size: .84rem;
+  color: var(--bs-secondary-color);
+  line-height: 1.6;
+  padding: 0 1.1rem;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .25s ease, padding .25s ease;
+}
+.faq-item.open .faq-a { max-height: 300px; padding: .75rem 1.1rem 1rem; }
+.faq-item.open .faq-chevron { transform: rotate(180deg); }
+.faq-chevron { transition: transform .2s; font-style: normal; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ayuda-page ia-page">
+<div class="ayuda-wrap">
+
+  <!-- Hero -->
+  <div class="ayuda-hero">
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <span style="font-size:2.2rem">📖</span>
+      <div>
+        <h1 class="fw-bold mb-0" style="font-size:1.6rem">Centro de Ayuda</h1>
+        <p class="mb-0 text-muted" style="font-size:.9rem">Aprendé a usar cada funcionalidad de IAFacturas paso a paso.</p>
+      </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
+        💡 Hacé clic en <strong>Iniciar tour</strong> para ver una guía interactiva en la página
+      </span>
+      <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2">
+        🧭 El botón <strong>?</strong> en la barra superior inicia el tour de la página actual
+      </span>
+    </div>
+  </div>
+
+  <!-- ═══ APLICACIÓN ════════════════════════════════════════════════════════ -->
+  <div class="ayuda-section-title">Aplicación</div>
+  <div class="feature-grid">
+
+    <div class="feature-card">
+      <div class="feature-card__icon">🚀</div>
+      <div class="feature-card__title">Inicio — Pipeline de procesamiento</div>
+      <div class="feature-card__desc">Configurá el flujo de trabajo activando o desactivando las tareas que querés ejecutar.</div>
+      <ul class="feature-card__steps">
+        <li>Activá cada tarea con el toggle</li>
+        <li>Las flechas animadas muestran las conexiones activas</li>
+        <li>Hacé clic en una card para ir directamente a esa sección</li>
+        <li>Presioná <strong>Comenzar</strong> para iniciar el flujo</li>
+      </ul>
+      <div class="feature-card__footer">
+        <a href="/app/inicio?tour=1" class="tour-btn">▶ Iniciar tour</a>
+        <a href="/app/inicio" class="go-btn">Ir a Inicio →</a>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-card__icon">📊</div>
+      <div class="feature-card__title">Dashboard</div>
+      <div class="feature-card__desc">Resumen visual de toda la actividad: facturas procesadas, estadísticas y estado de tu plan.</div>
+      <ul class="feature-card__steps">
+        <li>Visualizá el total de facturas procesadas</li>
+        <li>Revisá el uso de tu plan actual</li>
+        <li>Accedé rápidamente a las últimas facturas</li>
+      </ul>
+      <div class="feature-card__footer">
+        <a href="/app/dashboard" class="go-btn">Ir a Dashboard →</a>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-card__icon">📤</div>
+      <div class="feature-card__title">Analizar factura</div>
+      <div class="feature-card__desc">Procesá una factura individual con OCR e Inteligencia Artificial para extraer todos sus datos.</div>
+      <ul class="feature-card__steps">
+        <li>Arrastrá o seleccioná un PDF o imagen</li>
+        <li>La IA extrae automáticamente los datos</li>
+        <li>Revisá y editá los resultados</li>
+        <li>Guardá o exportá la información</li>
+      </ul>
+      <div class="feature-card__footer">
+        <a href="/app/upload" class="go-btn">Ir a Analizar →</a>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-card__icon">📁</div>
+      <div class="feature-card__title">Historial</div>
+      <div class="feature-card__desc">Accedé a todas las facturas procesadas anteriormente con sus datos extraídos.</div>
+      <ul class="feature-card__steps">
+        <li>Buscá por fecha, proveedor o monto</li>
+        <li>Filtrá por estado o tipo de documento</li>
+        <li>Descargá o reexportá cualquier factura</li>
+      </ul>
+      <div class="feature-card__footer">
+        <a href="/app/historial" class="go-btn">Ir a Historial →</a>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-card__icon">📦</div>
+      <div class="feature-card__title">Lotes</div>
+      <div class="feature-card__desc">Procesá múltiples facturas al mismo tiempo en un solo lote con IA.</div>
+      <ul class="feature-card__steps">
+        <li>Creá un nuevo lote y subí varios PDFs</li>
+        <li>El procesamiento corre en segundo plano</li>
+        <li>Revisá el resultado de cada factura del lote</li>
+        <li>Exportá todos los datos en un archivo</li>
+      </ul>
+      <div class="feature-card__footer">
+        <a href="/app/lotes" class="go-btn">Ir a Lotes →</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ HERRAMIENTAS ══════════════════════════════════════════════════════ -->
+  <div class="ayuda-section-title">Herramientas</div>
+  <div class="feature-grid">
+
+    <div class="feature-card">
+      <div class="feature-card__icon">🗂️</div>
+      <div class="feature-card__title">Plantillas de extracción</div>
+      <div class="feature-card__desc">Creá plantillas visuales dibujando zonas sobre un PDF para extraer campos específicos automáticamente.</div>
+      <ul class="feature-card__steps">
+        <li>Subí un PDF de referencia</li>
+        <li>Usá <kbd>Shift</kbd>+arrastrar para dibujar zonas</li>
+        <li>Nombrá cada zona con el campo que representa</li>
+        <li>Guardá la plantilla y usala en futuras extracciones</li>
+        <li>Probá la extracción con el botón <strong>Vista previa</strong></li>
+      </ul>
+      <div class="feature-card__footer">
+        <a href="/templates/?tour=1" class="tour-btn">▶ Iniciar tour</a>
+        <a href="/templates/" class="go-btn">Ir a Plantillas →</a>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-card__icon">📄</div>
+      <div class="feature-card__title">Herramientas PDF</div>
+      <div class="feature-card__desc">Dividí PDFs por rango de páginas o separalos en archivos individuales por hoja.</div>
+      <ul class="feature-card__steps">
+        <li>Subí el PDF que querés procesar</li>
+        <li>Elegí dividir por rango o todas las hojas</li>
+        <li>Previsualizá las páginas antes de dividir</li>
+        <li>Descargá el archivo resultante</li>
+      </ul>
+      <div class="feature-card__footer">
+        <a href="/pdf-toolkit/herramientas" class="go-btn">Ir a Herramientas PDF →</a>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-card__icon">🔍</div>
+      <div class="feature-card__title">Consultar CAE</div>
+      <div class="feature-card__desc">Validá el CAE de una factura contra AFIP/ARCA y consultá la base de apócrifos.</div>
+      <ul class="feature-card__steps">
+        <li>Ingresá el CUIT del emisor y el número de CAE</li>
+        <li>Verificación en línea contra los servidores de ARCA</li>
+        <li>Consultá si el CUIT figura en la base de apócrifos</li>
+        <li>Leé el QR de un PDF para extraer los datos automáticamente</li>
+      </ul>
+      <div class="feature-card__footer">
+        <a href="/cae/consultar" class="go-btn">Ir a Consultar CAE →</a>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-card__icon">💳</div>
+      <div class="feature-card__title">Planes</div>
+      <div class="feature-card__desc">Revisá y gestioná tu plan de suscripción para acceder a más funcionalidades.</div>
+      <ul class="feature-card__steps">
+        <li>Comparás las características de cada plan</li>
+        <li>Actualizás tu suscripción cuando lo necesitás</li>
+        <li>Revisás el historial de pagos</li>
+      </ul>
+      <div class="feature-card__footer">
+        <a href="/planes" class="go-btn">Ver Planes →</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ ADMINISTRACIÓN (solo admins) ══════════════════════════════════════ -->
+  {% if user.is_admin %}
+  <div class="ayuda-section-title">Administración</div>
+  <div class="feature-grid">
+
+    <div class="feature-card">
+      <div class="feature-card__icon">⚙️</div>
+      <div class="feature-card__title">Gestión de Usuarios</div>
+      <div class="feature-card__desc">Creá, editá y asigná permisos granulares a cada usuario del sistema.</div>
+      <ul class="feature-card__steps">
+        <li>Creá nuevos usuarios con email y contraseña</li>
+        <li>Asigná el rol <strong>Admin</strong> para acceso total</li>
+        <li>Configurá permisos por sección (Ver / Editar / Sin acceso)</li>
+        <li>Activá o desactivá cuentas sin eliminarlas</li>
+      </ul>
+      <div class="feature-card__footer">
+        <a href="/admin/usuarios/?tour=1" class="tour-btn">▶ Iniciar tour</a>
+        <a href="/admin/usuarios/" class="go-btn">Ir a Usuarios →</a>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-card__icon">💬</div>
+      <div class="feature-card__title">Feedback de usuarios</div>
+      <div class="feature-card__desc">Revisá todos los comentarios, errores y sugerencias enviados por los usuarios.</div>
+      <ul class="feature-card__steps">
+        <li>Filtrá por tipo: Mejora, Error, Consulta, Otro</li>
+        <li>Descargá los PDFs adjuntos enviados por usuarios</li>
+        <li>Revisá en qué página ocurrió cada reporte</li>
+      </ul>
+      <div class="feature-card__footer">
+        <a href="/feedback/admin" class="go-btn">Ver Feedback →</a>
+      </div>
+    </div>
+
+  </div>
+  {% endif %}
+
+  <!-- ═══ ATAJOS DE TECLADO ══════════════════════════════════════════════════ -->
+  <div class="ayuda-section-title">Atajos y tips</div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="feature-card">
+        <div class="feature-card__title">⌨️ Atajos de teclado</div>
+        <table class="table table-sm mb-0 mt-2" style="font-size:.82rem">
+          <tbody>
+            <tr><td><kbd>Shift</kbd> + arrastrar</td><td>Dibujar zona en editor de plantillas</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + scroll</td><td>Zoom en el visor de PDF</td></tr>
+            <tr><td><kbd>Escape</kbd></td><td>Cerrar sidebar / modal</td></tr>
+            <tr><td><kbd>←</kbd> <kbd>→</kbd> en toolbar</td><td>Navegar páginas del PDF</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="feature-card">
+        <div class="feature-card__title">💡 Tips rápidos</div>
+        <ul class="feature-card__steps mt-2">
+          <li>El botón <strong>💬</strong> (esquina inferior derecha) envía feedback y errores</li>
+          <li>El botón <strong>?</strong> en la barra superior inicia el tour de la página</li>
+          <li>El sidebar se puede ocultar con el botón ☰ para tener más espacio</li>
+          <li>Las cards del Pipeline en Inicio son cliqueables y llevan a cada sección</li>
+          <li>Podés arrastrar y redimensionar zonas en el editor de plantillas</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ FAQ ═══════════════════════════════════════════════════════════════ -->
+  <div class="ayuda-section-title">Preguntas frecuentes</div>
+  <div id="faqList">
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        ¿Qué formatos de archivo puedo subir?
+        <i class="faq-chevron">▾</i>
+      </div>
+      <div class="faq-a">
+        Podés subir archivos <strong>PDF</strong>, y también imágenes en formato <strong>PNG</strong> y <strong>JPG/JPEG</strong>. El sistema convierte las imágenes automáticamente antes de procesarlas con OCR.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        ¿Cómo funcionan las plantillas de extracción?
+        <i class="faq-chevron">▾</i>
+      </div>
+      <div class="faq-a">
+        Las plantillas te permiten definir zonas sobre un PDF de referencia. Cada zona tiene un nombre (por ejemplo "total", "fecha", "cuit_emisor"). Cuando usás esa plantilla con otro PDF del mismo formato, el sistema extrae el texto de esas coordenadas exactas, sin necesidad de IA.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        ¿Qué diferencia hay entre Analizar y Lotes?
+        <i class="faq-chevron">▾</i>
+      </div>
+      <div class="faq-a">
+        <strong>Analizar</strong> procesa una sola factura a la vez de forma inmediata. <strong>Lotes</strong> te permite subir múltiples facturas que se procesan en segundo plano — ideal para grandes volúmenes de documentos.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        ¿El CAE se valida en tiempo real contra AFIP?
+        <i class="faq-chevron">▾</i>
+      </div>
+      <div class="faq-a">
+        Sí. La consulta se realiza en tiempo real contra los servidores de ARCA/AFIP. Los resultados se cachean por una hora para no saturar el servicio externo.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        ¿Cómo asigno permisos a un usuario?
+        <i class="faq-chevron">▾</i>
+      </div>
+      <div class="faq-a">
+        Desde <strong>Administración → Usuarios</strong>, hacé clic en ✏️ para editar un usuario. En la pestaña <strong>Permisos</strong> vas a ver una tabla con todas las secciones de la app. Podés marcar <strong>Ver</strong>, <strong>Editar</strong> o dejar <strong>Sin acceso</strong> para cada sección. Los usuarios con rol <strong>Admin</strong> tienen acceso total automáticamente.
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block tour %}
+<script>
+window.PAGE_TOUR_STEPS = [
+  {
+    id: 'ayuda-bienvenida',
+    title: '📖 Centro de Ayuda',
+    text: 'Acá encontrás documentación de todas las funcionalidades. Cada card tiene una descripción, pasos a seguir y un botón para iniciar el tour interactivo en esa página.',
+    buttons: [{ text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'ayuda-tour-btn',
+    attachTo: { element: '#tourNavBtn', on: 'bottom' },
+    title: '? Botón de Tour',
+    text: 'Este botón inicia el tour guiado de la página en la que estás. Disponible en todas las páginas.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'ayuda-feedback',
+    attachTo: { element: '#feedbackBtn', on: 'left' },
+    title: '💬 Enviá feedback',
+    text: 'Si encontrás un error o tenés una sugerencia, usá este botón. Podés adjuntar un PDF con el problema.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Finalizar', action: 'complete' }]
+  },
+];
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleFaq(el) {
+  var item = el.closest('.faq-item');
+  var isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(function(i){ i.classList.remove('open'); });
+  if (!isOpen) item.classList.add('open');
+}
+</script>
+{% endblock %}

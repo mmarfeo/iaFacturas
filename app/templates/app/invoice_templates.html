@@ -382,6 +382,54 @@
 </dialog>
 {% endblock %}
 
+{% block tour %}
+<script>
+window.PAGE_TOUR_STEPS = [
+  {
+    id: 'tmpl-intro',
+    title: '🗂️ Editor de Plantillas',
+    text: 'Las plantillas te permiten definir zonas sobre un PDF para extraer campos específicos automáticamente. Seguí este tour para aprender a usarlas.',
+    buttons: [{ text: 'Comenzar →', action: 'next' }]
+  },
+  {
+    id: 'tmpl-leftpanel',
+    attachTo: { element: '#leftPanel', on: 'right' },
+    title: '📋 Panel de control',
+    text: 'Desde acá manejás todo: cargás plantillas guardadas, ves la lista de zonas definidas y guardás la plantilla con un nombre.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'tmpl-dropzone',
+    attachTo: { element: '#dropZoneEditor', on: 'left' },
+    title: '📂 Subir PDF de referencia',
+    text: 'Arrastrá o hacé clic acá para subir el PDF que vas a usar como base para definir las zonas.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'tmpl-zonas',
+    attachTo: { element: '#btnAddZone', on: 'bottom' },
+    title: '+ Zona',
+    text: 'Agregá una zona haciendo clic acá, o sobre el PDF usá <kbd>Shift</kbd> + arrastrar para dibujar directamente. Cada zona debe tener un nombre descriptivo (ej: "total", "fecha", "cuit").',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'tmpl-save',
+    attachTo: { element: '#templateNameInput', on: 'top' },
+    title: '💾 Guardar plantilla',
+    text: 'Poné un nombre para identificar la plantilla (ej: "Factura Proveedor ABC") y hacé clic en Guardar.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'tmpl-extract',
+    attachTo: { element: '#btnExtract', on: 'bottom' },
+    title: '🔍 Vista previa de extracción',
+    text: 'Con el PDF cargado y las zonas definidas, hacé clic acá para ver qué texto extraería el sistema de cada zona.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Finalizar', action: 'complete' }]
+  },
+];
+</script>
+{% endblock %}
+
 {% block scripts %}
 <script>
 (function () {

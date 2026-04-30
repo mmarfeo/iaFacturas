@@ -367,6 +367,48 @@
 </div>
 {% endblock %}
 
+{% block tour %}
+<script>
+window.PAGE_TOUR_STEPS = [
+  {
+    id: 'inicio-sidebar',
+    attachTo: { element: '#iaSidebar', on: 'right' },
+    title: '🗂️ Navegación lateral',
+    text: 'El sidebar te lleva a todas las secciones de la app. Podés ocultarlo con el botón ☰ de la barra superior para tener más espacio.',
+    buttons: [{ text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'inicio-pipeline',
+    attachTo: { element: '.pipeline-track', on: 'top' },
+    title: '⚙️ Pipeline de procesamiento',
+    text: 'Acá configurás el flujo de trabajo. Cada card representa una tarea. Activá o desactivá con el toggle de cada una.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'inicio-node-tmpl',
+    attachTo: { element: '#node-tmpl', on: 'bottom' },
+    title: '🗂️ Crear Plantilla',
+    text: 'Hacé clic en esta card para ir al editor de plantillas. Ahí definís zonas sobre un PDF para extraer campos automáticamente.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'inicio-comenzar',
+    attachTo: { element: '#btn-comenzar', on: 'top' },
+    title: '▶ Comenzar',
+    text: 'Una vez que configuraste las tareas, presioná Comenzar para ir al primer paso del flujo activo.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'inicio-quickaccess',
+    attachTo: { element: '.quick-grid', on: 'top' },
+    title: '⚡ Accesos rápidos',
+    text: 'Cards de acceso directo a cada sección. Hacé clic en cualquiera para ir a esa funcionalidad al instante.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Finalizar', action: 'complete' }]
+  },
+];
+</script>
+{% endblock %}
+
 {% block scripts %}
 <script>
 (function () {

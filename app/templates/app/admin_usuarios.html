@@ -218,6 +218,46 @@
 </div>
 {% endblock %}
 
+{% block tour %}
+<script>
+window.PAGE_TOUR_STEPS = [
+  {
+    id: 'admin-intro',
+    title: '⚙️ Gestión de Usuarios',
+    text: 'Desde acá podés crear nuevos usuarios, editarlos, asignarles permisos y controlar su acceso al sistema.',
+    buttons: [{ text: 'Comenzar →', action: 'next' }]
+  },
+  {
+    id: 'admin-crear',
+    attachTo: { element: '.btn-primary', on: 'bottom' },
+    title: '+ Nuevo usuario',
+    text: 'Hacé clic acá para abrir el formulario de creación. Vas a poder ingresar nombre, email, contraseña y elegir si es administrador.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'admin-tabla',
+    attachTo: { element: '.table-responsive', on: 'top' },
+    title: '📋 Tabla de usuarios',
+    text: 'Cada fila muestra un usuario. Podés ver su nombre, email, rol (Admin/Usuario), estado y fecha de registro.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'admin-buscar',
+    attachTo: { element: '#searchInput', on: 'bottom' },
+    title: '🔍 Buscar usuarios',
+    text: 'Filtrá la tabla en tiempo real escribiendo el nombre o email del usuario.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Siguiente →', action: 'next' }]
+  },
+  {
+    id: 'admin-acciones',
+    title: '✏️ ⏸ 🗑 Acciones por usuario',
+    text: 'En cada fila encontrás 3 botones: <strong>✏️ Editar</strong> (datos + permisos), <strong>⏸ Desactivar/Activar</strong> y <strong>🗑 Eliminar</strong>. Al editar aparece la pestaña <strong>Permisos</strong> con una tabla Ver/Editar/Sin acceso por sección.',
+    buttons: [{ text: '← Atrás', action: 'back' }, { text: 'Finalizar', action: 'complete' }]
+  },
+];
+</script>
+{% endblock %}
+
 {% block scripts %}
 <script>
 (function () {

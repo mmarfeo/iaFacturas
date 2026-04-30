@@ -308,3 +308,22 @@
   }
 </script>
 {% endblock %}
+
+{% block tour %}
+<script>
+window.PAGE_TOUR_STEPS = [
+  {
+    id: 'tour-upload-zone',
+    attachTo: { element: '#upload-zone', on: 'bottom' },
+    title: '📂 Zona de carga',
+    text: 'Arrastrá un PDF de factura aquí o hacé clic para seleccionarlo. Soportamos facturas A, B, C y M de hasta 20MB.',
+  },
+  {
+    id: 'tour-upload-tips',
+    attachTo: { element: '.ia-tips', on: 'top' },
+    title: '💡 Tips para mejores resultados',
+    text: 'Usá siempre el PDF original de la factura electrónica. Los escaneos o fotos de baja calidad pueden afectar la extracción.',
+  },
+];
+</script>
+{% endblock %}

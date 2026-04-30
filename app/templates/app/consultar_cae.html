@@ -1069,3 +1069,28 @@ updatePipelineState();
 })();
 </script>
 {% endblock %}
+
+{% block tour %}
+<script>
+window.PAGE_TOUR_STEPS = [
+  {
+    id: 'tour-cae-pipeline',
+    attachTo: { element: '.pipeline-track', on: 'bottom' },
+    title: '⚙️ Configurador de proceso',
+    text: 'El pipeline muestra las tareas disponibles. Cada nodo tiene un toggle para activarlo o desactivarlo antes de ejecutar.',
+  },
+  {
+    id: 'tour-cae-extract',
+    attachTo: { element: '#node-extract', on: 'bottom' },
+    title: '📄 Extraer QR',
+    text: 'Lee el código QR del PDF de la factura y extrae los datos del comprobante directamente.',
+  },
+  {
+    id: 'tour-cae-validate',
+    attachTo: { element: '#node-cae', on: 'bottom' },
+    title: '✅ Validar CAE',
+    text: 'Consulta el CAE contra los servicios de AFIP/ARCA en tiempo real para verificar su vigencia.',
+  },
+];
+</script>
+{% endblock %}

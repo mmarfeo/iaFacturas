@@ -137,3 +137,22 @@ document.querySelectorAll('[id^="fila-lote-"]').forEach(function(fila) {
 });
 </script>
 {% endblock %}
+
+{% block tour %}
+<script>
+window.PAGE_TOUR_STEPS = [
+  {
+    id: 'tour-lotes-header',
+    attachTo: { element: 'a[href="/app/lotes/nuevo"].btn-primary', on: 'left' },
+    title: '+ Nuevo lote',
+    text: 'Creá un lote para procesar múltiples PDFs en simultáneo, agrupados por proveedor o período.',
+  },
+  {
+    id: 'tour-lotes-tabla',
+    attachTo: { element: '#tabla-lotes', on: 'top' },
+    title: '📦 Tabla de lotes',
+    text: 'Cada fila muestra el nombre del lote, la fecha, cuántas facturas se procesaron y su estado actual.',
+  },
+];
+</script>
+{% endblock %}

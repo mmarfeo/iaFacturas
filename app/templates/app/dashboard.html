@@ -197,3 +197,28 @@
   </div>
 </div>
 {% endblock %}
+
+{% block tour %}
+<script>
+window.PAGE_TOUR_STEPS = [
+  {
+    id: 'tour-dash-stats',
+    attachTo: { element: '.ia-stat-card', on: 'bottom' },
+    title: '📋 Estadísticas del mes',
+    text: 'Acá ves el resumen de tu actividad: facturas procesadas, CAEs vigentes, advertencias y tu plan actual.',
+  },
+  {
+    id: 'tour-dash-table',
+    attachTo: { element: '.ia-table-card', on: 'top' },
+    title: '📄 Últimas facturas',
+    text: 'Lista las facturas procesadas recientemente. Hacé clic en cualquier fila para ver el detalle completo.',
+  },
+  {
+    id: 'tour-dash-upload',
+    attachTo: { element: 'a[href="/app/upload"].btn-primary', on: 'left' },
+    title: '+ Analizar factura',
+    text: 'Este botón te lleva directamente a subir un nuevo PDF para que lo procese la IA.',
+  },
+];
+</script>
+{% endblock %}

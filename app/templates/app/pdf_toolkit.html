@@ -723,3 +723,28 @@
 })();
 </script>
 {% endblock %}
+
+{% block tour %}
+<script>
+window.PAGE_TOUR_STEPS = [
+  {
+    id: 'tour-pdf-mode',
+    attachTo: { element: '#btnModeAll', on: 'bottom' },
+    title: '✂️ Modo de división',
+    text: 'Elegí <strong>Todas las hojas</strong> para dividir el PDF página por página, o <strong>Rango de páginas</strong> para extraer solo un intervalo específico.',
+  },
+  {
+    id: 'tour-pdf-drop',
+    attachTo: { element: '#dropZone', on: 'top' },
+    title: '📂 Zona de carga',
+    text: 'Arrastrá uno o varios PDFs aquí. Podés subir múltiples archivos a la vez y se procesarán todos juntos.',
+  },
+  {
+    id: 'tour-pdf-split',
+    attachTo: { element: '#btnSplit', on: 'top' },
+    title: '⬇️ Dividir y descargar',
+    text: 'Una vez cargado el PDF, este botón se activa. Al hacer clic recibís un archivo ZIP con un PDF por página.',
+  },
+];
+</script>
+{% endblock %}

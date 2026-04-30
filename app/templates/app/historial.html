@@ -181,3 +181,28 @@
   </div>
 </div>
 {% endblock %}
+
+{% block tour %}
+<script>
+window.PAGE_TOUR_STEPS = [
+  {
+    id: 'tour-hist-filters',
+    attachTo: { element: '.ia-filter-bar', on: 'bottom' },
+    title: '🔍 Filtros',
+    text: 'Buscá por nombre de archivo o CUIT, y filtrá por estado del CAE: Todos, Vigentes o Vencidos.',
+  },
+  {
+    id: 'tour-hist-table',
+    attachTo: { element: '.ia-table-card', on: 'top' },
+    title: '📊 Tabla de historial',
+    text: 'Cada fila es una factura procesada. Hacé clic para ver el detalle con todos los datos extraídos por la IA.',
+  },
+  {
+    id: 'tour-hist-excel',
+    attachTo: { element: 'a[href*="export/excel"]', on: 'bottom' },
+    title: '📥 Exportar a Excel',
+    text: 'Descargá el historial filtrado como archivo Excel para trabajarlo fuera de la app.',
+  },
+];
+</script>
+{% endblock %}
