@@ -32,7 +32,7 @@ async def login_page(
     user=Depends(get_current_user),
 ):
     if user:
-        return RedirectResponse("/app/dashboard", status_code=302)
+        return RedirectResponse("/app/inicio", status_code=302)
     return templates.TemplateResponse("auth/login.html", {
         "request": request, "user": None, "current_page": "login", "error": None,
     })
@@ -62,7 +62,7 @@ async def login_submit(
         }, status_code=400)
 
     token = create_access_token(user.id)
-    response = RedirectResponse("/app/dashboard", status_code=302)
+    response = RedirectResponse("/app/inicio", status_code=302)
     response.set_cookie(_COOKIE, token, **_COOKIE_OPTS)
     return response
 
@@ -75,7 +75,7 @@ async def register_page(
     user=Depends(get_current_user),
 ):
     if user:
-        return RedirectResponse("/app/dashboard", status_code=302)
+        return RedirectResponse("/app/inicio", status_code=302)
     return templates.TemplateResponse("auth/register.html", {
         "request": request, "user": None, "current_page": "register", "error": None,
     })
@@ -130,7 +130,7 @@ async def register_submit(
     await db.refresh(nuevo)
 
     token = create_access_token(nuevo.id)
-    response = RedirectResponse("/app/dashboard", status_code=302)
+    response = RedirectResponse("/app/inicio", status_code=302)
     response.set_cookie(_COOKIE, token, **_COOKIE_OPTS)
     return response
 

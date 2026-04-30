@@ -26,8 +26,10 @@
   background: var(--bs-body-bg);
   transition: border-color .25s, box-shadow .25s, opacity .25s;
   display: flex; flex-direction: column; gap: .3rem;
-  cursor: default;
+  cursor: pointer;
+  text-decoration: none; color: inherit;
 }
+.task-node:hover { border-color: var(--ia-accent); box-shadow: 0 4px 18px rgba(99,102,241,.15); }
 .task-node--active   { border-color: var(--ia-accent); box-shadow: 0 0 0 3px color-mix(in srgb,var(--ia-accent) 15%,transparent); }
 .task-node--inactive { opacity: .4; }
 .task-node--running  { border-color: #3b82f6; animation: nodeGlow 1.4s ease-in-out infinite; }
@@ -163,8 +165,32 @@
 
       <div class="pipeline-track">
 
+        <!-- ── Tarea 0: Plantilla de extracción ── -->
+        <a class="task-node task-node--active" id="node-tmpl" href="/templates/">
+          <div class="task-node__emoji">🗂️</div>
+          <div class="task-node__title">Crear Plantilla</div>
+          <div class="task-node__desc">Definí zonas en un PDF para extraer campos automáticamente</div>
+          <div class="task-node__dest">→ Plantillas</div>
+          <div class="task-node__status">
+            <span class="st-icon st-done">✓</span>
+            <span>Configurar</span>
+          </div>
+        </a>
+
+        <!-- Conector 0→1 -->
+        <div class="pipeline-conn pipeline-conn--active" id="conn-01">
+          <div class="pipeline-conn__line">
+            <div class="pipeline-dots">
+              <div class="pipeline-dot"></div>
+              <div class="pipeline-dot"></div>
+              <div class="pipeline-dot"></div>
+            </div>
+          </div>
+          <div class="pipeline-conn__arrow"></div>
+        </div>
+
         <!-- ── Tarea 1: Analizar con IA ── -->
-        <div class="task-node task-node--active" id="node-ia">
+        <div class="task-node task-node--active" id="node-ia" data-href="/app/lotes/nuevo">
           <div class="task-node__emoji">📊</div>
           <div class="task-node__title">Analizar con IA</div>
           <div class="task-node__desc">Extrae datos de facturas y lotes con inteligencia artificial</div>
@@ -195,7 +221,7 @@
         </div>
 
         <!-- ── Tarea 2: Extraer QR ── -->
-        <div class="task-node task-node--active" id="node-qr">
+        <div class="task-node task-node--active" id="node-qr" data-href="/cae/consultar">
           <div class="task-node__emoji">📄</div>
           <div class="task-node__title">Extraer QR</div>
           <div class="task-node__desc">Lee el código QR del PDF y decodifica los datos del comprobante</div>
@@ -226,7 +252,7 @@
         </div>
 
         <!-- ── Tarea 3: Validar CAE ── -->
-        <div class="task-node task-node--active" id="node-cae">
+        <div class="task-node task-node--active" id="node-cae" data-href="/cae/consultar">
           <div class="task-node__emoji">✅</div>
           <div class="task-node__title">Validar CAE</div>
           <div class="task-node__desc">Verifica el CAE contra AFIP/ARCA en línea</div>
@@ -257,7 +283,7 @@
         </div>
 
         <!-- ── Tarea 4: Base Apócrifos ── -->
-        <div class="task-node task-node--active" id="node-apoc">
+        <div class="task-node task-node--active" id="node-apoc" data-href="/cae/consultar">
           <div class="task-node__emoji">🔍</div>
           <div class="task-node__title">Base Apócrifos</div>
           <div class="task-node__desc">Consulta si el CUIT figura en la base APOC de ARCA</div>
@@ -472,6 +498,16 @@ Object.keys(toggles).forEach(function (key) {
 
 // ── Init ───────────────────────────────────────────────────────
 update();
+
+// ── Cards cliqueables (data-href) ──────────────────────────────
+document.querySelectorAll('.task-node[data-href]').forEach(function(node) {
+  node.addEventListener('click', function(e) {
+    // No navegar si el click fue en el toggle o en sus hijos
+    if (e.target.closest('label') || e.target.closest('input[type="checkbox"]')) return;
+    var href = node.getAttribute('data-href');
+    if (href) window.location.href = href;
+  });
+});
 
 })();
 </script>

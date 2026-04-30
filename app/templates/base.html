@@ -10,42 +10,75 @@
   <link href="/static/css/iafacturas.css" rel="stylesheet">
   {% block head %}{% endblock %}
 
-  <!-- Apply dark mode before render to avoid flash -->
+  <!-- Apply dark mode + sidebar state before render to avoid flash -->
   <script>
     (function() {
-      var d = localStorage.getItem('ia-dark') === '1';
-      document.documentElement.setAttribute('data-bs-theme', d ? 'dark' : 'light');
+      var dark = localStorage.getItem('ia-dark') === '1';
+      document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+      // Sidebar: abierto por defecto en desktop
+      var sbOpen = localStorage.getItem('ia-sb') !== '0';
+      if (sbOpen) document.documentElement.classList.add('sb-open');
     })();
   </script>
 
   <style>
-    /* ── Sidebar ─────────────────────────────────────────────────── */
+    /* ── Sidebar layout variables ─────────────────────────────── */
+    :root { --sb-w: 260px; }
+
+    /* ── Sidebar ─────────────────────────────────────────────── */
     #iaSidebar {
       position: fixed;
       top: 0; left: 0;
-      width: 260px;
+      width: var(--sb-w);
       height: 100vh;
-      z-index: 1055;
+      z-index: 1045;
       background: var(--bs-body-bg);
       border-right: 1px solid var(--bs-border-color);
       display: flex;
       flex-direction: column;
-      transform: translateX(-100%);
+      transform: translateX(calc(-1 * var(--sb-w)));
       transition: transform .25s ease;
       overflow: hidden;
     }
-    #iaSidebar.open { transform: translateX(0); }
+    /* Desktop: sidebar en layout (empuja contenido) */
+    @media (min-width: 768px) {
+      html.sb-open #iaSidebar { transform: translateX(0); }
+    }
+    /* Mobile: siempre overlay */
+    @media (max-width: 767px) {
+      html.sb-open.sb-mobile #iaSidebar { transform: translateX(0); }
+    }
 
+    /* ── Backdrop (solo mobile) ──────────────────────────────── */
     #sidebarBackdrop {
       display: none;
       position: fixed;
       inset: 0;
-      z-index: 1054;
-      background: rgba(0,0,0,.35);
+      z-index: 1044;
+      background: rgba(0,0,0,.4);
     }
-    #sidebarBackdrop.open { display: block; }
+    @media (max-width: 767px) {
+      html.sb-open.sb-mobile #sidebarBackdrop { display: block; }
+    }
 
-    /* Sidebar header */
+    /* ── Navbar shift ────────────────────────────────────────── */
+    @media (min-width: 768px) {
+      html.sb-open .ia-navbar {
+        left: var(--sb-w);
+        width: calc(100% - var(--sb-w));
+      }
+      .ia-navbar { transition: left .25s ease, width .25s ease; }
+    }
+
+    /* ── Content shift ───────────────────────────────────────── */
+    #iaPageShift {
+      transition: margin-left .25s ease;
+    }
+    @media (min-width: 768px) {
+      html.sb-open #iaPageShift { margin-left: var(--sb-w); }
+    }
+
+    /* ── Sidebar internals ───────────────────────────────────── */
     .ia-sidebar-header {
       display: flex;
       align-items: center;
@@ -54,83 +87,75 @@
       border-bottom: 1px solid var(--bs-border-color);
       flex-shrink: 0;
     }
-
-    /* Sidebar nav links */
     .ia-sidebar-nav {
       flex: 1;
       overflow-y: auto;
-      padding: .5rem 0;
+      padding: .4rem 0;
     }
     .ia-sidebar-nav a {
       display: flex;
       align-items: center;
       gap: .55rem;
-      padding: .6rem 1.25rem;
+      padding: .55rem 1.2rem;
       color: var(--bs-body-color);
       text-decoration: none;
-      font-size: .92rem;
+      font-size: .9rem;
       font-weight: 500;
-      border-radius: 0;
       transition: background .15s;
+      white-space: nowrap;
     }
-    .ia-sidebar-nav a:hover {
-      background: var(--bs-tertiary-bg);
-    }
+    .ia-sidebar-nav a:hover { background: var(--bs-tertiary-bg); }
     .ia-sidebar-nav a.active {
-      background: rgba(var(--ia-accent-rgb, 99,102,241), .12);
+      background: rgba(99,102,241,.12);
       color: var(--ia-accent, #6366f1);
       font-weight: 600;
     }
     .ia-sidebar-nav .nav-section {
-      font-size: .72rem;
+      font-size: .7rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: .06em;
+      letter-spacing: .07em;
       color: var(--bs-secondary-color);
-      padding: .9rem 1.25rem .3rem;
+      padding: .8rem 1.2rem .25rem;
     }
-
-    /* Sidebar footer (user info) */
     .ia-sidebar-footer {
       padding: .85rem 1.1rem;
       border-top: 1px solid var(--bs-border-color);
       flex-shrink: 0;
     }
 
-    /* Hamburger button in navbar */
+    /* ── Hamburger button ────────────────────────────────────── */
     #sidebarToggle {
       background: none;
       border: none;
       cursor: pointer;
-      padding: .35rem .45rem;
+      padding: .3rem .4rem;
       border-radius: 6px;
       color: var(--bs-body-color);
       display: flex;
       flex-direction: column;
       gap: 4px;
+      flex-shrink: 0;
       transition: background .15s;
     }
     #sidebarToggle:hover { background: var(--bs-tertiary-bg); }
     #sidebarToggle span {
       display: block;
-      width: 20px;
-      height: 2px;
+      width: 20px; height: 2px;
       background: currentColor;
       border-radius: 2px;
-      transition: transform .2s, opacity .2s;
     }
   </style>
 </head>
 <body>
 
 {% if user %}
-<!-- ═══════════════════ SIDEBAR BACKDROP ═══════════════════ -->
+<!-- ═══════════════════ SIDEBAR BACKDROP (mobile) ═══════════════════ -->
 <div id="sidebarBackdrop"></div>
 
 <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
 <aside id="iaSidebar">
 
-  <!-- Header -->
   <div class="ia-sidebar-header">
     <a class="ia-logo" href="/" style="text-decoration:none">
       <div class="ia-logo-icon">IA</div>
@@ -143,25 +168,23 @@
     </button>
   </div>
 
-  <!-- Nav links -->
   <nav class="ia-sidebar-nav">
     <div class="nav-section">Aplicación</div>
-    <a href="/app/inicio"                 class="{% if current_page == 'inicio' %}active{% endif %}">🚀 Inicio</a>
-    <a href="/app/dashboard"              class="{% if current_page == 'dashboard' %}active{% endif %}">📊 Dashboard</a>
-    <a href="/app/upload"                 class="{% if current_page == 'upload' %}active{% endif %}">📤 Analizar</a>
-    <a href="/app/historial"              class="{% if current_page == 'historial' %}active{% endif %}">📁 Historial</a>
-    <a href="/app/lotes"                  class="{% if current_page == 'lotes' %}active{% endif %}">📦 Lotes</a>
+    <a href="/app/inicio"               class="{% if current_page == 'inicio' %}active{% endif %}">🚀 Inicio</a>
+    <a href="/app/dashboard"            class="{% if current_page == 'dashboard' %}active{% endif %}">📊 Dashboard</a>
+    <a href="/app/upload"               class="{% if current_page == 'upload' %}active{% endif %}">📤 Analizar</a>
+    <a href="/app/historial"            class="{% if current_page == 'historial' %}active{% endif %}">📁 Historial</a>
+    <a href="/app/lotes"                class="{% if current_page == 'lotes' %}active{% endif %}">📦 Lotes</a>
 
     <div class="nav-section">Herramientas</div>
-    <a href="/pdf-toolkit/herramientas"   class="{% if current_page == 'pdf_toolkit' %}active{% endif %}">📄 Herramientas PDF</a>
-    <a href="/templates/"                 class="{% if current_page == 'templates' %}active{% endif %}">🗂️ Plantillas</a>
-    <a href="/cae/consultar"              class="{% if current_page == 'consultar_cae' %}active{% endif %}">🔍 Consultar CAE</a>
+    <a href="/pdf-toolkit/herramientas" class="{% if current_page == 'pdf_toolkit' %}active{% endif %}">📄 Herramientas PDF</a>
+    <a href="/templates/"               class="{% if current_page == 'templates' %}active{% endif %}">🗂️ Plantillas</a>
+    <a href="/cae/consultar"            class="{% if current_page == 'consultar_cae' %}active{% endif %}">🔍 Consultar CAE</a>
 
     <div class="nav-section">Cuenta</div>
-    <a href="/planes"                     class="{% if current_page == 'planes' %}active{% endif %}">💳 Planes</a>
+    <a href="/planes"                   class="{% if current_page == 'planes' %}active{% endif %}">💳 Planes</a>
   </nav>
 
-  <!-- Footer: user info + logout -->
   <div class="ia-sidebar-footer">
     <div class="d-flex align-items-center gap-2 mb-2">
       <div class="ia-avatar" style="width:32px;height:32px;font-size:.85rem;flex-shrink:0">
@@ -172,9 +195,9 @@
         <div class="text-muted" style="font-size:.75rem">Plan {{ user.plan.nombre if user.plan else 'Free' }}</div>
       </div>
     </div>
-    <a href="/auth/logout"
-       class="btn btn-sm btn-outline-danger w-100"
-       style="font-size:.8rem">Cerrar sesión</a>
+    <a href="/auth/logout" class="btn btn-sm btn-outline-danger w-100" style="font-size:.8rem">
+      Cerrar sesión
+    </a>
   </div>
 
 </aside>
@@ -185,26 +208,22 @@
   <div class="container-xl d-flex align-items-center gap-2">
 
     {% if user %}
-    <!-- Sidebar toggle -->
     <button id="sidebarToggle" title="Menú" aria-label="Abrir menú">
       <span></span><span></span><span></span>
     </button>
     {% endif %}
 
-    <!-- Logo -->
     <a class="ia-logo me-auto" href="/">
       <div class="ia-logo-icon">IA</div>
       <span class="ia-logo-text"><span class="text-accent">IA</span>Facturas</span>
     </a>
 
-    <!-- Right actions -->
     <div class="d-flex align-items-center gap-2">
       <button class="ia-dark-toggle" id="darkToggle" title="Cambiar tema">🌙</button>
 
       {% if user %}
         <div class="dropdown">
-          <div class="ia-avatar" data-bs-toggle="dropdown" style="cursor:pointer"
-               title="{{ user.nombre }}">
+          <div class="ia-avatar" data-bs-toggle="dropdown" style="cursor:pointer" title="{{ user.nombre }}">
             {{ user.nombre[0]|upper }}
           </div>
           <ul class="dropdown-menu dropdown-menu-end ia-dropdown shadow">
@@ -213,9 +232,7 @@
               <div class="text-muted" style="font-size:11px">Plan {{ user.plan.nombre if user.plan else 'Free' }}</div>
             </li>
             <li>
-              <a class="dropdown-item text-danger" style="font-size:13px" href="/auth/logout">
-                Cerrar sesión
-              </a>
+              <a class="dropdown-item text-danger" style="font-size:13px" href="/auth/logout">Cerrar sesión</a>
             </li>
           </ul>
         </div>
@@ -228,8 +245,10 @@
   </div>
 </nav>
 
-<!-- ═══════════════════ FLASH MESSAGES ═══════════════════ -->
-{% if messages %}
+<!-- ═══════════════════ CONTENT WRAPPER ═══════════════════ -->
+<div id="iaPageShift">
+
+  {% if messages %}
   <div style="padding-top:var(--ia-navbar-h)">
     {% for category, message in messages %}
       <div class="alert alert-{{ category }} alert-dismissible fade show rounded-0 mb-0" role="alert">
@@ -238,10 +257,11 @@
       </div>
     {% endfor %}
   </div>
-{% endif %}
+  {% endif %}
 
-<!-- ═══════════════════ CONTENT ═══════════════════ -->
-{% block content %}{% endblock %}
+  {% block content %}{% endblock %}
+
+</div><!-- /iaPageShift -->
 
 <!-- ═══════════════════ FEEDBACK WIDGET ═══════════════════ -->
 {% if user %}
@@ -267,19 +287,11 @@
 
     <div class="mb-3">
       <label class="form-label small fw-semibold">Tipo</label>
-      <div class="d-flex gap-2 flex-wrap" id="feedbackTipos">
-        <label class="feedback-tipo-btn">
-          <input type="radio" name="fbTipo" value="mejora" hidden> Mejora
-        </label>
-        <label class="feedback-tipo-btn">
-          <input type="radio" name="fbTipo" value="error" hidden> Error / Bug
-        </label>
-        <label class="feedback-tipo-btn">
-          <input type="radio" name="fbTipo" value="consulta" hidden> Consulta
-        </label>
-        <label class="feedback-tipo-btn">
-          <input type="radio" name="fbTipo" value="otro" hidden> Otro
-        </label>
+      <div class="d-flex gap-2 flex-wrap">
+        <label class="feedback-tipo-btn"><input type="radio" name="fbTipo" value="mejora" hidden> Mejora</label>
+        <label class="feedback-tipo-btn"><input type="radio" name="fbTipo" value="error" hidden> Error / Bug</label>
+        <label class="feedback-tipo-btn"><input type="radio" name="fbTipo" value="consulta" hidden> Consulta</label>
+        <label class="feedback-tipo-btn"><input type="radio" name="fbTipo" value="otro" hidden> Otro</label>
       </div>
     </div>
 
@@ -292,8 +304,7 @@
 
     <div class="mb-3">
       <label class="form-label small fw-semibold">
-        Adjuntar PDF
-        <span class="text-muted fw-normal">(opcional, máx. 10 MB)</span>
+        Adjuntar PDF <span class="text-muted fw-normal">(opcional, máx. 10 MB)</span>
       </label>
       <input type="file" id="feedbackArchivo" class="form-control form-control-sm" accept=".pdf">
       <div id="feedbackArchivoNombre" class="small text-muted mt-1" style="display:none"></div>
@@ -302,57 +313,45 @@
     <div id="feedbackMsg" class="small mb-2" style="display:none"></div>
 
     <div class="d-flex justify-content-end gap-2">
-      <button type="button" id="feedbackCancelBtn"
-        class="btn btn-sm btn-outline-secondary">Cancelar</button>
-      <button type="button" id="feedbackSubmit"
-        class="btn btn-sm btn-primary">Enviar</button>
+      <button type="button" id="feedbackCancelBtn" class="btn btn-sm btn-outline-secondary">Cancelar</button>
+      <button type="button" id="feedbackSubmit" class="btn btn-sm btn-primary">Enviar</button>
     </div>
   </div>
 </dialog>
 
 <style>
   .feedback-tipo-btn {
-    cursor: pointer;
-    padding: .25rem .75rem;
-    border-radius: 20px;
-    border: 1px solid var(--bs-border-color);
-    font-size: .82rem;
-    user-select: none;
-    transition: background .15s, border-color .15s;
+    cursor:pointer; padding:.25rem .75rem; border-radius:20px;
+    border:1px solid var(--bs-border-color); font-size:.82rem;
+    user-select:none; transition:background .15s,border-color .15s;
   }
   .feedback-tipo-btn:has(input:checked) {
-    background: var(--ia-accent, #6366f1);
-    color: #fff;
-    border-color: var(--ia-accent, #6366f1);
+    background:var(--ia-accent,#6366f1); color:#fff;
+    border-color:var(--ia-accent,#6366f1);
   }
-  #feedbackDialog::backdrop { background: rgba(0,0,0,.4); }
+  #feedbackDialog::backdrop { background:rgba(0,0,0,.4); }
 </style>
 
 <script>
 (function () {
-  var btn    = document.getElementById('feedbackBtn');
-  var dialog = document.getElementById('feedbackDialog');
+  var btn       = document.getElementById('feedbackBtn');
+  var dialog    = document.getElementById('feedbackDialog');
   var closeBtn  = document.getElementById('feedbackClose');
   var cancelBtn = document.getElementById('feedbackCancelBtn');
-  var submit = document.getElementById('feedbackSubmit');
-  var msgEl  = document.getElementById('feedbackMsg');
-  var archivoInput = document.getElementById('feedbackArchivo');
+  var submit    = document.getElementById('feedbackSubmit');
+  var msgEl     = document.getElementById('feedbackMsg');
+  var archivoInput    = document.getElementById('feedbackArchivo');
   var archivoNombreEl = document.getElementById('feedbackArchivoNombre');
 
   archivoInput.addEventListener('change', function () {
-    if (archivoInput.files.length) {
-      archivoNombreEl.textContent = archivoInput.files[0].name;
-      archivoNombreEl.style.display = '';
-    } else {
-      archivoNombreEl.style.display = 'none';
-    }
+    archivoNombreEl.textContent = archivoInput.files.length ? archivoInput.files[0].name : '';
+    archivoNombreEl.style.display = archivoInput.files.length ? '' : 'none';
   });
 
   function openDialog() {
     msgEl.style.display = 'none';
     document.getElementById('feedbackMensaje').value = '';
-    archivoInput.value = '';
-    archivoNombreEl.style.display = 'none';
+    archivoInput.value = ''; archivoNombreEl.style.display = 'none';
     document.querySelectorAll('input[name="fbTipo"]').forEach(function(r){ r.checked = false; });
     dialog.showModal();
   }
@@ -364,32 +363,26 @@
   dialog.addEventListener('click', function(e){ if (e.target === dialog) closeDialog(); });
 
   submit.addEventListener('click', function () {
-    var tipoEl = document.querySelector('input[name="fbTipo"]:checked');
+    var tipoEl  = document.querySelector('input[name="fbTipo"]:checked');
     var mensaje = document.getElementById('feedbackMensaje').value.trim();
-    if (!tipoEl) { showMsg('Seleccioná un tipo.', 'danger'); return; }
+    if (!tipoEl)  { showMsg('Seleccioná un tipo.', 'danger'); return; }
     if (!mensaje) { showMsg('Escribí un mensaje.', 'danger'); return; }
 
     var fd = new FormData();
     fd.append('tipo', tipoEl.value);
     fd.append('mensaje', mensaje);
     fd.append('pagina', location.pathname);
-    if (archivoInput.files.length) {
-      fd.append('archivo', archivoInput.files[0]);
-    }
+    if (archivoInput.files.length) fd.append('archivo', archivoInput.files[0]);
 
     submit.disabled = true;
     fetch('/feedback/send', { method: 'POST', body: fd })
-    .then(function(r){ return r.json(); })
-    .then(function(data) {
-      if (data.success) {
-        showMsg('Gracias por tu comentario!', 'success');
-        setTimeout(closeDialog, 1500);
-      } else {
-        showMsg(data.message || 'Error al enviar.', 'danger');
-      }
-    })
-    .catch(function(){ showMsg('Error de red.', 'danger'); })
-    .finally(function(){ submit.disabled = false; });
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        if (data.success) { showMsg('Gracias por tu comentario!', 'success'); setTimeout(closeDialog, 1500); }
+        else showMsg(data.message || 'Error al enviar.', 'danger');
+      })
+      .catch(function(){ showMsg('Error de red.', 'danger'); })
+      .finally(function(){ submit.disabled = false; });
   });
 
   function showMsg(text, type) {
@@ -405,54 +398,72 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
   // ── Dark mode ──────────────────────────────────────────────────
-  function applyDarkToggleIcons() {
+  function applyDarkIcon() {
     var dark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-    document.querySelectorAll('#darkToggle').forEach(function(btn) {
-      btn.textContent = dark ? '☀️' : '🌙';
+    var btn = document.getElementById('darkToggle');
+    if (btn) btn.textContent = dark ? '☀️' : '🌙';
+  }
+  var darkBtn = document.getElementById('darkToggle');
+  if (darkBtn) {
+    darkBtn.addEventListener('click', function() {
+      var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+      document.documentElement.setAttribute('data-bs-theme', isDark ? 'light' : 'dark');
+      localStorage.setItem('ia-dark', isDark ? '0' : '1');
+      applyDarkIcon();
     });
   }
-  document.querySelectorAll('#darkToggle').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var html = document.documentElement;
-      var isDark = html.getAttribute('data-bs-theme') === 'dark';
-      html.setAttribute('data-bs-theme', isDark ? 'light' : 'dark');
-      localStorage.setItem('ia-dark', isDark ? '0' : '1');
-      applyDarkToggleIcons();
-    });
-  });
-  applyDarkToggleIcons();
+  applyDarkIcon();
 
   // ── Sidebar ────────────────────────────────────────────────────
   (function () {
+    var html      = document.documentElement;
     var sidebar   = document.getElementById('iaSidebar');
     var backdrop  = document.getElementById('sidebarBackdrop');
     var toggleBtn = document.getElementById('sidebarToggle');
     var closeBtn  = document.getElementById('sidebarClose');
-    if (!sidebar) return;
+    if (!sidebar || !toggleBtn) return;
+
+    function isMobile() { return window.innerWidth < 768; }
 
     function openSidebar() {
-      sidebar.classList.add('open');
-      backdrop.classList.add('open');
-      document.body.style.overflow = 'hidden';
+      html.classList.add('sb-open');
+      if (isMobile()) {
+        html.classList.add('sb-mobile');
+        document.body.style.overflow = 'hidden';
+      }
+      localStorage.setItem('ia-sb', '1');
     }
+
     function closeSidebar() {
-      sidebar.classList.remove('open');
-      backdrop.classList.remove('open');
+      html.classList.remove('sb-open', 'sb-mobile');
+      document.body.style.overflow = '';
+      localStorage.setItem('ia-sb', '0');
+    }
+
+    function toggleSidebar() {
+      if (html.classList.contains('sb-open')) {
+        // En mobile siempre cerrar; en desktop toggle
+        if (isMobile() && html.classList.contains('sb-mobile')) closeSidebar();
+        else if (!isMobile()) closeSidebar();
+        else openSidebar();
+      } else {
+        openSidebar();
+      }
+    }
+
+    toggleBtn.addEventListener('click', toggleSidebar);
+    if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
+    if (backdrop) backdrop.addEventListener('click', closeSidebar);
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeSidebar(); });
+
+    // En mobile, el estado guardado no aplica (siempre cerrado al cargar)
+    if (isMobile()) {
+      html.classList.remove('sb-open', 'sb-mobile');
       document.body.style.overflow = '';
     }
-
-    toggleBtn.addEventListener('click', openSidebar);
-    closeBtn.addEventListener('click', closeSidebar);
-    backdrop.addEventListener('click', closeSidebar);
-
-    // Cerrar con Escape
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') closeSidebar();
-    });
   })();
 </script>
 {% block scripts %}{% endblock %}
-
 
 </body>
 </html>
