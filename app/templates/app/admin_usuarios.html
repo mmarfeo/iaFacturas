@@ -68,7 +68,7 @@
             <th style="width:90px">Rol</th>
             <th style="width:100px">Estado</th>
             <th style="width:110px">Registro</th>
-            <th style="width:90px">Acciones</th>
+            <th style="width:120px">Acciones</th>
           </tr>
         </thead>
         <tbody id="usersTableBody">
@@ -296,16 +296,10 @@ function renderTabla(users) {
       '<td>' + rolBadge + '</td>' +
       '<td class="small">' + statusHtml + '</td>' +
       '<td class="small text-muted">' + esc(u.created_at) + '</td>' +
-      '<td>' +
-        '<div class="dropdown">' +
-          '<button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">•••</button>' +
-          '<ul class="dropdown-menu dropdown-menu-end">' +
-            '<li><a class="dropdown-item" href="#" onclick=\'abrirModalEditar(' + JSON.stringify(u) + ');return false\'>Editar</a></li>' +
-            '<li><a class="dropdown-item ' + toggleClass + '" href="#" onclick="toggleStatus(' + u.id + ',' + !u.is_active + ');return false">' + toggleTxt + '</a></li>' +
-            '<li><hr class="dropdown-divider"></li>' +
-            '<li><a class="dropdown-item text-danger" href="#" onclick="abrirModalEliminar(' + u.id + ',\'' + esc(u.nombre) + '\');return false">Eliminar</a></li>' +
-          '</ul>' +
-        '</div>' +
+      '<td class="text-nowrap">' +
+        '<button class="btn btn-sm btn-outline-primary me-1" title="Editar" onclick=\'abrirModalEditar(' + JSON.stringify(u) + ')\'>✏️</button>' +
+        '<button class="btn btn-sm ' + (u.is_active ? 'btn-outline-warning' : 'btn-outline-success') + ' me-1" title="' + toggleTxt + '" onclick="toggleStatus(' + u.id + ',' + !u.is_active + ')">' + (u.is_active ? '⏸' : '▶') + '</button>' +
+        '<button class="btn btn-sm btn-outline-danger" title="Eliminar" onclick="abrirModalEliminar(' + u.id + ',\'' + esc(u.nombre) + '\')">🗑</button>' +
       '</td>' +
     '</tr>';
   }).join('');
